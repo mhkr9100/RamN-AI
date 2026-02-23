@@ -2,9 +2,6 @@
 import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
 import { AGENTS, AI_RESUMES } from "../constants";
-import { memoryService } from "./memory";
-import { promptCacheService } from "./promptCache";
-import { leannService } from "./leannService";
 
 /**
  * ROBUST API CALL WRAPPER
@@ -156,27 +153,6 @@ export async function generateSingleAgentResponse(
     const caps = agent.capabilities || [];
     let systemPrompt = `You are ${agent.name}, ${agent.role}.\n\n`;
 
-    // Memory Extraction (Post-history)
-    const userMessageCount = history.filter(m => m.type === 'user').length;
-    if (userMessageCount > 0) {
-        const lastUserMessage = history[history.length - 1];
-        if (lastUserMessage && lastUserMessage.type === 'user' && lastUserMessage.content.type === 'text') {
-            memoryService.extractAndStoreMemories(lastUserMessage.userId, agent.id, lastUserMessage.content.text);
-
-            // Invoke LEANN RAG context retrieval
-            const ragContext = await leannService.search(lastUserMessage.content.text);
-            const formattedContext = leannService.formatContextForPrompt(lastUserMessage.content.text, ragContext);
-            systemPrompt += formattedContext;
-        }
-    }
-
-    // Memory Injection
-    if (history.length > 0) {
-        const userId = history[0].userId;
-        const memoryContext = memoryService.buildMemoryContext(userId, agent.id);
-        systemPrompt += memoryContext;
-    }
-
     if (agent.id === 'prism-core') {
         systemPrompt += `[PRISM ORCHESTRATION PROTOCOL]\n`;
         systemPrompt += `- MISSION: Translate human intent into specialized AI architectures.\n`;
@@ -196,17 +172,6 @@ export async function generateSingleAgentResponse(
             role: msg.type === 'user' ? 'user' : 'model',
             parts: msg.content.type === 'text' ? [{ text: msg.content.text }] : [{ text: (msg.content as any).text || "" }]
         }));
-
-        // Semantic Caching Check (Applicable to standard interactions)
-        const lastMessage = contents.length > 0 ? contents[contents.length - 1].parts[0].text : "";
-        const fingerprint = promptCacheService.createFingerprint(agent.model, systemPrompt, contents.length, lastMessage);
-
-        if (responseMode === 'CHAT') {
-            const cached = promptCacheService.getCache(fingerprint);
-            if (cached) {
-                return cached;
-            }
-        }
 
         const availableTools = caps.map(cap => CAPABILITY_TOOLS[cap]).filter(Boolean);
         if (agent.id === 'prism-core') {
