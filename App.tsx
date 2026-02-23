@@ -20,9 +20,9 @@ import { AGENTS } from './constants';
 
 const App: React.FC = () => {
   const {
-      currentUser, isInitializing, login, logout, userProfile, setUserProfile, agents, setAgents, teams, setTeams,
-      activeChatId, setActiveChatId, chatHistory, setChatHistory, isProcessing, typingAgent, typingAgents, prismStatus, orchestrationWeights, agentModes,
-      handleSendMessage, handleExecuteCommand, handleExpandMessage, injectOutputToChat, clearChat, loadChatHistory, recruitAgent, createTeam, deleteAgent, deleteTeam, processSilentDirective
+    currentUser, isInitializing, login, logout, userProfile, setUserProfile, agents, setAgents, teams, setTeams,
+    activeChatId, setActiveChatId, chatHistory, setChatHistory, isProcessing, typingAgent, typingAgents, prismStatus, orchestrationWeights, agentModes,
+    handleSendMessage, handleExecuteCommand, handleExpandMessage, injectOutputToChat, clearChat, loadChatHistory, recruitAgent, createTeam, deleteAgent, deleteTeam, processSilentDirective
   } = useScatter();
 
   const { intervals, deleteInterval, saveInterval } = useChatIntervals();
@@ -31,7 +31,7 @@ const App: React.FC = () => {
   const [activeView, setActiveView] = useState<'home' | 'prism' | 'spectrum' | 'chats' | 'work' | 'media'>('home');
   const [createModalType, setCreateModalType] = useState<'agent' | 'project' | null>(null);
   const [createModalInitialValues, setCreateModalInitialValues] = useState<any>(undefined);
-  
+
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
 
@@ -40,17 +40,17 @@ const App: React.FC = () => {
   const [pendingIntervalToLoad, setPendingIntervalToLoad] = useState<ChatInterval | null>(null);
 
   if (isInitializing) {
-      return (
-          <div className="h-screen w-screen bg-[#1A1A1A] flex items-center justify-center">
-              <div className="text-white font-bold animate-pulse uppercase tracking-[0.5em] text-xs">
-                  Initializing RamN AI...
-              </div>
-          </div>
-      );
+    return (
+      <div className="h-screen w-screen bg-[#1A1A1A] flex items-center justify-center">
+        <div className="text-white font-bold animate-pulse uppercase tracking-[0.5em] text-xs">
+          Initializing RamN AI...
+        </div>
+      </div>
+    );
   }
 
   if (!currentUser) {
-      return <LoginScreen onLogin={login} />;
+    return <LoginScreen onLogin={login} />;
   }
 
   const activeTeam = teams.find(g => g.id === activeChatId);
@@ -60,8 +60,8 @@ const App: React.FC = () => {
   const handleSaveCurrentInterval = async (name: string) => {
     const currentMsgs = chatHistory[activeChatId] || [];
     if (currentMsgs.length > 0) {
-        await saveInterval(activeChatId, name, currentMsgs);
-        clearChat(activeChatId);
+      await saveInterval(activeChatId, name, currentMsgs);
+      clearChat(activeChatId);
     }
     setIsIntervalSaveOpen(false);
   };
@@ -70,10 +70,10 @@ const App: React.FC = () => {
     const currentMsgs = chatHistory[activeChatId] || [];
     const isDirty = activeChatId === 'prism-core' ? currentMsgs.length > 1 : currentMsgs.length > 0;
     if (isDirty) {
-        setPendingIntervalToLoad(interval);
-        setIsUnsavedPromptOpen(true);
+      setPendingIntervalToLoad(interval);
+      setIsUnsavedPromptOpen(true);
     } else {
-        performLoadInterval(interval);
+      performLoadInterval(interval);
     }
   };
 
@@ -88,24 +88,24 @@ const App: React.FC = () => {
 
   const handleHireFromSpectrum = (p: any) => {
     if ('modelId' in p) {
-        setCreateModalInitialValues({ profileId: p.id, role: p.tags[0], jd: p.summary, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
+      setCreateModalInitialValues({ profileId: p.id, role: p.tags[0], jd: p.summary, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
     } else {
-        setCreateModalInitialValues({ profileId: p.defaultModelId, role: p.role, jd: p.jobDescription, name: p.name, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
+      setCreateModalInitialValues({ profileId: p.defaultModelId, role: p.role, jd: p.jobDescription, name: p.name, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
     }
     setCreateModalType('agent');
   };
 
   const handleInjectSystemMessage = (text: string) => {
-      const sysMsg: Message = {
-          id: `sys-${Date.now()}`,
-          agent: AGENTS.PRISM,
-          type: 'agent',
-          content: { type: 'text', text: `[SYSTEM_SIGNAL]: ${text}` }
-      };
-      setChatHistory(prev => ({
-          ...prev,
-          [activeChatId]: [...(prev[activeChatId] || []), sysMsg]
-      }));
+    const sysMsg: Message = {
+      id: `sys-${Date.now()}`,
+      agent: AGENTS.PRISM,
+      type: 'agent',
+      content: { type: 'text', text: `[SYSTEM_SIGNAL]: ${text}` }
+    };
+    setChatHistory(prev => ({
+      ...prev,
+      [activeChatId]: [...(prev[activeChatId] || []), sysMsg]
+    }));
   };
 
   const profileData = isPrism ? { type: 'prism' as const, data: AGENTS.PRISM } : (activeTeam ? { type: 'team' as const, data: activeTeam } : (activeAgent ? { type: 'agent' as const, data: activeAgent } : null));
@@ -136,11 +136,11 @@ const App: React.FC = () => {
               </header>
 
               <div className="flex-1 overflow-hidden relative">
-                <ChatView 
+                <ChatView
                   messages={chatHistory[activeChatId] || []} isLoading={isProcessing} typingAgent={typingAgent} typingAgents={typingAgents as any}
-                  onSubmit={handleSendMessage} onOpenTaskModal={() => {}}
+                  onSubmit={handleSendMessage} onOpenTaskModal={() => { }}
                   onSaveInterval={() => setIsIntervalSaveOpen(true)} onContinueIntervals={() => setIsProfileSidebarOpen(true)}
-                  onAddAgent={recruitAgent} onCreateTeam={(data) => createTeam({ ...data, type: 'rouge' })} 
+                  onAddAgent={recruitAgent} onCreateTeam={(data) => createTeam({ ...data, type: 'rouge' })}
                   onExecuteCommand={handleExecuteCommand}
                   /* Fix: Removed invalid onDeclareExpansion prop to align with ChatViewProps */
                   onExpandMessage={handleExpandMessage}
@@ -154,9 +154,9 @@ const App: React.FC = () => {
               </div>
             </div>
             {profileData && (
-              <ProfileSidebar 
+              <ProfileSidebar
                 isOpen={isProfileSidebarOpen} type={profileData.type} data={profileData.data as any} globalTasks={[]} intervals={intervals}
-                onUpdateUserProfile={(p) => setUserProfile({...userProfile, ...p})}
+                onUpdateUserProfile={(p) => setUserProfile({ ...userProfile, ...p })}
                 userProfile={userProfile}
                 onContinueInterval={handleContinueInterval} onDeleteInterval={deleteInterval}
                 onClose={() => setIsProfileSidebarOpen(false)} onSaveAgent={(u) => setAgents(prev => prev.map(e => e.id === u.id ? u : e))} onSaveTeam={(u) => setTeams(prev => prev.map(g => g.id === u.id ? u : g))}
@@ -169,12 +169,16 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#1A1A1A] text-white font-sans selection:bg-white/10">
-      <SideBar 
+      <SideBar
         activeView={activeView}
         onViewChange={(view) => {
-            if (view === 'work') return; // Enforce disable in logic
-            setActiveView(view);
-            if (view === 'prism') setActiveChatId('prism-core');
+          if (view === 'work') return; // Enforce disable in logic
+          setActiveView(view);
+          if (view === 'prism') {
+            setActiveChatId('prism-core');
+          } else if (view === 'chats' && activeChatId === 'prism-core') {
+            setActiveChatId(agents.length > 0 ? agents[0].id : (teams.length > 0 ? teams[0].id : ''));
+          }
         }}
         onOpenProfile={() => setIsUserProfileOpen(true)}
         agents={agents}
@@ -191,23 +195,23 @@ const App: React.FC = () => {
       </main>
 
       {createModalType && (
-          <CreateEntityModal isOpen={!!createModalType} type={createModalType === 'agent' ? 'employee' : 'project'} employees={agents} initialValues={createModalInitialValues} onClose={() => { setCreateModalType(null); setCreateModalInitialValues(undefined); }} onCreateEmployee={recruitAgent} onCreateGroup={createTeam} />
+        <CreateEntityModal isOpen={!!createModalType} type={createModalType === 'agent' ? 'employee' : 'project'} employees={agents} initialValues={createModalInitialValues} onClose={() => { setCreateModalType(null); setCreateModalInitialValues(undefined); }} onCreateEmployee={recruitAgent} onCreateGroup={createTeam} />
       )}
-      
+
       {isUserProfileOpen && (
-          <UserProfileModal user={userProfile} isOpen={isUserProfileOpen} onClose={() => setIsUserProfileOpen(false)} onSave={setUserProfile} onLogout={logout} />
+        <UserProfileModal user={userProfile} isOpen={isUserProfileOpen} onClose={() => setIsUserProfileOpen(false)} onSave={setUserProfile} onLogout={logout} />
       )}
-      
+
       {isIntervalSaveOpen && (
-          <IntervalSaveModal isOpen={isIntervalSaveOpen} onClose={() => setIsIntervalSaveOpen(false)} onSave={handleSaveCurrentInterval} />
+        <IntervalSaveModal isOpen={isIntervalSaveOpen} onClose={() => setIsIntervalSaveOpen(false)} onSave={handleSaveCurrentInterval} />
       )}
-      
+
       {isUnsavedPromptOpen && (
-          <UnsavedPrompt 
-            isOpen={isUnsavedPromptOpen} onCancel={() => setIsUnsavedPromptOpen(false)}
-            onSave={() => { setIsUnsavedPromptOpen(false); setIsIntervalSaveOpen(true); }}
-            onIgnore={() => { if (pendingIntervalToLoad) { performLoadInterval(pendingIntervalToLoad); } }}
-          />
+        <UnsavedPrompt
+          isOpen={isUnsavedPromptOpen} onCancel={() => setIsUnsavedPromptOpen(false)}
+          onSave={() => { setIsUnsavedPromptOpen(false); setIsIntervalSaveOpen(true); }}
+          onIgnore={() => { if (pendingIntervalToLoad) { performLoadInterval(pendingIntervalToLoad); } }}
+        />
       )}
     </div>
   );

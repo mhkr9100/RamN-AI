@@ -7,8 +7,8 @@ export const VAULT = {
 
 export const AI_RESUMES: AIModelProfile[] = [
     {
-        id: 'gemini-3-flash',
-        name: 'Gemini 3 Flash',
+        id: 'ramn-fast',
+        name: 'RamN Fast',
         version: 'Preview',
         provider: 'google',
         modelId: 'gemini-3-flash-preview',
@@ -29,8 +29,8 @@ export const AI_RESUMES: AIModelProfile[] = [
         supportedCapabilities: ['googleSearch', 'transcription', 'vision']
     },
     {
-        id: 'gemini-3-pro',
-        name: 'Gemini 3 Pro',
+        id: 'ramn-pro',
+        name: 'RamN Pro',
         version: 'Preview',
         provider: 'google',
         modelId: 'gemini-3-pro-preview',
@@ -51,8 +51,8 @@ export const AI_RESUMES: AIModelProfile[] = [
         supportedCapabilities: ['googleSearch', 'thinking', 'vision', 'videoUnderstanding']
     },
     {
-        id: 'gemini-2.5-flash',
-        name: 'Gemini 2.5 Flash',
+        id: 'ramn-fast-legacy',
+        name: 'RamN Fast Legacy',
         version: 'Stable',
         provider: 'google',
         modelId: 'gemini-2.5-flash',
@@ -73,8 +73,8 @@ export const AI_RESUMES: AIModelProfile[] = [
         supportedCapabilities: ['googleSearch', 'googleMaps', 'vision']
     },
     {
-        id: 'gemini-3-pro-image',
-        name: 'Gemini 3 Pro Image',
+        id: 'ramn-vision',
+        name: 'RamN Vision',
         version: 'Preview',
         provider: 'google',
         modelId: 'gemini-3-pro-image-preview',

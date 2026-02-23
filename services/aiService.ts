@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
-import { AGENTS, AI_RESUMES } from "../constants";
+import { AGENTS, AI_RESUMES, VAULT } from "../constants";
 
 /**
  * ROBUST API CALL WRAPPER
@@ -10,7 +10,7 @@ async function executeWithRetry<T>(operation: (ai: GoogleGenAI) => Promise<T>, a
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
         try {
-            const ai = new GoogleGenAI({ apiKey: apiKey || process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: apiKey || VAULT.GOOGLE || process.env.API_KEY });
             return await operation(ai);
         } catch (error: any) {
             lastError = error;
@@ -28,7 +28,7 @@ async function executeWithRetry<T>(operation: (ai: GoogleGenAI) => Promise<T>, a
 
             if (isQuotaError && i < maxRetries - 1) {
                 const delay = Math.pow(2, i) * 2000 + Math.random() * 1000;
-                console.warn(`Gemini API Quota reached. Retrying attempt ${i + 1} in ${Math.round(delay)}ms...`);
+                console.warn(`API Quota reached. Retrying attempt ${i + 1} in ${Math.round(delay)}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
@@ -83,7 +83,7 @@ const CAPABILITY_TOOLS: Record<string, FunctionDeclaration> = {
                     type: Type.STRING,
                     description: 'MANDATORY: Must use headers: # Role & Objective, # Context, # Instructions / Rules, # Conversation Flow, # Safety & Escalation.'
                 },
-                suggestedModel: { type: Type.STRING, description: 'Your recommended AI model for this specific role (e.g. Gemini 3 Pro).' },
+                suggestedModel: { type: Type.STRING, description: 'Your recommended AI model for this specific role.' },
                 icon: { type: Type.STRING, description: 'Single emoji icon.' },
                 capabilities: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Enabled tools.' }
             },
@@ -157,7 +157,7 @@ export async function generateSingleAgentResponse(
         systemPrompt += `[PRISM ORCHESTRATION PROTOCOL]\n`;
         systemPrompt += `- MISSION: Translate human intent into specialized AI architectures.\n`;
         systemPrompt += `- AGENT FABRICATION RULE: Strictly follow the 5-section format.\n`;
-        systemPrompt += `- IMPORTANT: You suggest models (like 'Gemini 3 Pro'), but user ultimately selects the layer from their available stack.\n`;
+        systemPrompt += `- IMPORTANT: You suggest models based on processing needs, but user ultimately selects the layer from their available stack.\n`;
         systemPrompt += `- Always explain WHY you are suggesting a specific specialist in text before triggering the fabrication.\n\n`;
     }
 

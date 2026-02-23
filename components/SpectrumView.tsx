@@ -43,16 +43,10 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                         onClick={() => scrollToSection(0)}
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
-                        Available models
-                    </button>
-                    <button
-                        onClick={() => scrollToSection(1)}
-                        className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
-                    >
                         Your Agents & Groups
                     </button>
                     <button
-                        onClick={() => scrollToSection(2)}
+                        onClick={() => scrollToSection(1)}
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
                         Special Agents
@@ -64,38 +58,7 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                 ref={scrollContainerRef}
                 className="flex-1 flex overflow-x-auto snap-x snap-mandatory custom-scrollbar scroll-smooth"
             >
-                {/* SECTION 1: AVAILABLE MODELS */}
-                <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
-                    <div className="max-w-5xl mx-auto">
-                        <div className="mb-8 flex items-center gap-4">
-                            <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">Available models (for you)</h3>
-                            <div className="h-px flex-1 bg-white/5" />
-                        </div>
-                        {availableModels.length === 0 ? (
-                            <div className="bg-white/[0.02] border border-white/5 rounded-[2rem] p-12 text-center max-w-2xl mx-auto flex flex-col items-center gap-6 saturate-0 opacity-50">
-                                <span className="text-4xl block">🔑</span>
-                                <h4 className="font-display font-extrabold text-white text-xl tracking-tight uppercase">API Key Required</h4>
-                                <p className="text-[14px] text-slate-400 italic font-medium tracking-wide leading-relaxed">
-                                    Please provide your Google Gemini API Key in your User Profile (bottom left) to unlock the Spectrum models roster.
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                                {availableModels.map(m => (
-                                    <div key={m.id} className="bg-white/[0.02] border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-4 group hover:bg-white/[0.04] transition-all border-dashed aspect-square">
-                                        <span className="text-4xl grayscale group-hover:grayscale-0 transition-all">{m.icon}</span>
-                                        <div className="space-y-1">
-                                            <h4 className="text-[11px] font-black text-white uppercase tracking-widest">{m.name}</h4>
-                                            <p className="text-[9px] text-white/20 uppercase font-bold">{m.provider}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
 
-                {/* SECTION 2: YOUR AGENTS & GROUPS */}
                 <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
                     <div className="max-w-5xl mx-auto">
                         <div className="mb-8 flex items-center gap-4">
@@ -160,7 +123,7 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                             <div className="h-px flex-1 bg-white/5" />
                         </div>
 
-                        <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             {AGENT_TEMPLATES.map(item => (
                                 <ListItem
                                     key={item.id}
