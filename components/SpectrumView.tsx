@@ -39,14 +39,15 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Spectrum</span>
                 </div>
                 <div className="flex gap-3">
+
                     <button
-                        onClick={() => scrollToSection(0)}
+                        onClick={() => scrollToSection(1)}
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
                         Your Agents & Groups
                     </button>
                     <button
-                        onClick={() => scrollToSection(1)}
+                        onClick={() => scrollToSection(2)}
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
                         Special Agents
@@ -58,7 +59,7 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                 ref={scrollContainerRef}
                 className="flex-1 flex overflow-x-auto snap-x snap-mandatory custom-scrollbar scroll-smooth"
             >
-
+                {/* SECTION 2: YOUR AGENTS & GROUPS */}
                 <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
                     <div className="max-w-5xl mx-auto">
                         <div className="mb-8 flex items-center gap-4">
@@ -84,7 +85,7 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                             </button>
                         </div>
 
-                        <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {userAgents.map(agent => (
                                 <ListItem
                                     key={agent.id}
@@ -123,7 +124,7 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                             <div className="h-px flex-1 bg-white/5" />
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {AGENT_TEMPLATES.map(item => (
                                 <ListItem
                                     key={item.id}

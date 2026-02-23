@@ -196,7 +196,7 @@ export function SideBar({
               <div>
                 <h3 className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em] mb-3 px-2">Agents</h3>
                 <div className="space-y-0.5">
-                  {agents.map(agent => (
+                  {agents.filter(a => a.id !== 'prism-core').map(agent => (
                     <ChatListItem key={agent.id} id={agent.id} name={agent.name} isSystem={agent.isSystem} isActive={activeChatId === agent.id} onClick={onSelectChat} onDelete={onDeleteAgent} />
                   ))}
                 </div>

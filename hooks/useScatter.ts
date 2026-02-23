@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Agent, Team, Message, UserProfile, MessageContent, Task, ToolCall, GlobalTask } from '../types';
 import { AGENTS, SYSTEM_TEAMS } from '../constants';
-import { generateSingleAgentResponse, generatePrismResponse, dispatchGroupTask, executeInterceptedCommand, generateExpandedSolution } from '../services/aiService';
+import { generateSingleAgentResponse, generatePrismResponse, dispatchGroupTask, executeInterceptedCommand, generateExpandedSolution } from '../services/geminiService';
 import { dbService, STORES_ENUM } from '../services/db';
 import { authService } from '../services/auth';
 

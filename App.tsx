@@ -121,6 +121,23 @@ const App: React.FC = () => {
       case 'work': // Theoretically unreachable but kept for safety
         return <div className="p-20 text-center opacity-20 uppercase tracking-[0.5em] text-xs">Work Hub Disabled in Beta</div>;
       default:
+        // Automatically deselect Prism if we are supposed to be in 'chats' view and Prism is still active
+        const showBlankState = activeView === 'chats' && isPrism;
+
+        if (showBlankState) {
+          return (
+            <div className="flex-1 flex flex-col items-center justify-center border-r border-white/5 bg-[#1A1A1A]">
+              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-6 border border-white/10">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-8 h-8 text-white/20">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494 3.32 3.32 0 0 0 2.822-3.237V9.72m-3.22 8.4A3.32 3.32 0 0 0 21 14.885V5.115a3.32 3.32 0 0 0-2.822-3.236A48.282 48.282 0 0 0 12 1.535c-2.11 0-4.18.173-6.208.494A3.32 3.32 0 0 0 3 5.115v9.77M12 10.5h.008v.008H12V10.5Z" />
+                </svg>
+              </div>
+              <h3 className="text-white/40 font-black uppercase tracking-[0.2em] text-xs">No Agent Selected</h3>
+              <p className="text-white/20 text-[10px] mt-2 font-medium">Select an agent or team from the sidebar to begin.</p>
+            </div>
+          );
+        }
+
         return (
           <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 flex flex-col min-w-0 border-r border-white/5">
@@ -142,7 +159,6 @@ const App: React.FC = () => {
                   onSaveInterval={() => setIsIntervalSaveOpen(true)} onContinueIntervals={() => setIsProfileSidebarOpen(true)}
                   onAddAgent={recruitAgent} onCreateTeam={(data) => createTeam({ ...data, type: 'rouge' })}
                   onExecuteCommand={handleExecuteCommand}
-                  /* Fix: Removed invalid onDeclareExpansion prop to align with ChatViewProps */
                   onExpandMessage={handleExpandMessage}
                   onSaveToTasks={handleAddGlobalTask}
                   onInjectSystemMessage={handleInjectSystemMessage}
@@ -174,11 +190,7 @@ const App: React.FC = () => {
         onViewChange={(view) => {
           if (view === 'work') return; // Enforce disable in logic
           setActiveView(view);
-          if (view === 'prism') {
-            setActiveChatId('prism-core');
-          } else if (view === 'chats' && activeChatId === 'prism-core') {
-            setActiveChatId(agents.length > 0 ? agents[0].id : (teams.length > 0 ? teams[0].id : ''));
-          }
+          if (view === 'prism') setActiveChatId('prism-core');
         }}
         onOpenProfile={() => setIsUserProfileOpen(true)}
         agents={agents}
