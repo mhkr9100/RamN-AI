@@ -1,0 +1,8 @@
+{
+  "name": "RamN AI - Beta",
+  "description": "AI Multi-Agent Collaboration Platform",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
