@@ -56,22 +56,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartPrismChat }
                         </div>
                     </div>
 
-                    {/* Agent Suggestion Cards */}
-                    <div className="mt-8 flex flex-wrap justify-center gap-3 max-w-2xl px-4 w-full animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-300">
-                        {[
-                            { label: "Full-Stack Developer", prompt: "Create a full-stack Next.js app with Tailwind for an e-commerce store", icon: "💻" },
-                            { label: "Content Strategist", prompt: "Write a 3-month content strategy for a B2B SaaS startup", icon: "✍️" },
-                            { label: "Data Analyst", prompt: "Analyze this dataset for customer churn trends", icon: "📊" }
-                        ].map((suggestion, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => onStartPrismChat(suggestion.prompt)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all text-sm text-slate-300 hover:text-white"
-                            >
-                                <span>{suggestion.icon}</span>
-                                <span>{suggestion.label}</span>
-                            </button>
-                        ))}
+                    <div className="mt-8 flex flex-col items-center max-w-2xl px-4 w-full animate-in fade-in slide-in-from-bottom-16 duration-1000 delay-300">
+                        <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-4">Quick Start Guide</div>
+                        <div className="flex flex-wrap justify-center gap-3">
+                            {[
+                                { label: "Create Route", prompt: "Create a full-stack Next.js app with Tailwind for an e-commerce store", icon: "🟢" },
+                                { label: "Content Strategist", prompt: "Write a 3-month content strategy for a B2B SaaS startup", icon: "✍️" },
+                                { label: "Data Analyst", prompt: "Analyze this dataset for customer churn trends", icon: "📊" }
+                            ].map((suggestion, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => onStartPrismChat(suggestion.prompt)}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all text-sm text-slate-300 hover:text-white"
+                                >
+                                    <span>{suggestion.icon}</span>
+                                    <span>{suggestion.label}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -83,21 +85,24 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartPrismChat }
                         <h2 className="font-display text-5xl font-extrabold text-white tracking-tight">AI <span className="italic font-light text-slate-500">Models</span></h2>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {AI_RESUMES.map((model, idx) => (
-                            <div key={model.id} className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-12 group hover:bg-white/[0.06] transition-all duration-700 hover:scale-[1.02] flex flex-col h-full">
-                                <div className="flex items-center justify-between mb-12">
-                                    <div className="w-16 h-16 rounded-3xl bg-black border border-white/10 flex items-center justify-center text-4xl shadow-inner">
-                                        <span className="grayscale opacity-40 group-hover:opacity-100 group-hover:grayscale-0 transition-all">{model.icon}</span>
-                                    </div>
-                                    <span className="text-[9px] font-mono border border-white/10 px-4 py-1.5 rounded-full text-slate-500 uppercase tracking-[0.4em]">
-                                        MOD_{idx + 1}
-                                    </span>
-                                </div>
-                                <h4 className="font-display font-extrabold text-white mb-4 text-xl tracking-tight uppercase">{model.name}</h4>
-                                <p className="text-[14px] text-slate-400 italic mb-14 font-medium tracking-wide leading-relaxed flex-grow">"{model.tagline}"</p>
-                            </div>
-                        ))}
+                    <div className="grid grid-cols-1 gap-8 place-items-center opacity-50 grayscale">
+                        <div className="bg-white/[0.03] border border-white/5 rounded-[3rem] p-12 text-center max-w-md">
+                            <span className="text-4xl mb-6 block">🔒</span>
+                            <h4 className="font-display font-extrabold text-white mb-4 text-xl tracking-tight uppercase">Requires API Key</h4>
+                            <p className="text-[14px] text-slate-400 italic font-medium tracking-wide leading-relaxed">
+                                Provide your Google Gemini API Key in your User Profile to unlock the Spectrum models.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-20">
+                    <div className="flex flex-col items-center space-y-6 text-center">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.8em]">Workspace Roster</span>
+                        <h2 className="font-display text-5xl font-extrabold text-white tracking-tight">Special <span className="italic font-light text-slate-500">Agents</span></h2>
+                    </div>
+                    <div className="text-center text-slate-500 text-sm font-bold tracking-widest uppercase border border-white/5 py-12 rounded-3xl bg-white/[0.01]">
+                        Coming Soon
                     </div>
                 </div>
 

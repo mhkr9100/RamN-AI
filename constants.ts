@@ -2,7 +2,7 @@
 import { Agent, AIModelProfile, AgentTemplate, AgentCapability, Team } from './types';
 
 export const VAULT = {
-    GOOGLE: process.env.API_KEY || '',
+    GOOGLE: process.env.VITE_GEMINI_API_KEY || 'AIzaSyDno8x4_8tPs_UGgdXRR3I2gZ6IOJ8Eq6U',
 };
 
 export const AI_RESUMES: AIModelProfile[] = [
@@ -154,12 +154,12 @@ You understand modern marketing frameworks and consumer psychology.
 ];
 
 export const AGENTS: Record<string, Agent> = {
-  PRISM: {
-    id: 'prism-core',
-    name: 'Prism',
-    type: 'HR',
-    role: 'Meta Agent',
-    jobDescription: `# Role & Objective
+    PRISM: {
+        id: 'prism-core',
+        name: 'Prism',
+        type: 'HR',
+        role: 'Meta Agent',
+        jobDescription: `# Role & Objective
 You are Prism, the Meta Agent and Workspace Architect for this platform. Success means accurately identifying the specialized roles needed for user goals and creating Agents or Teams to handle them.
 
 # Context
@@ -177,52 +177,15 @@ You are the primary interface for workspace creation. You manage individual Agen
 
 # Safety & Escalation
 - If a goal is too broad, ask clarifying questions to refine the architecture.`,
-    icon: '💎',
-    provider: 'google',
-    model: 'gemini-3-flash-preview',
-    apiKey: VAULT.GOOGLE,
-    isDeletable: false,
-    isSystem: true,
-    capabilities: ['googleSearch', 'googleMaps', 'imageGeneration', 'thinking', 'vision', 'liveAudio']
-  },
-  RESEARCHER: {
-    id: 'sys-research',
-    name: 'Researcher',
-    type: 'agent',
-    role: 'Search Analyst',
-    jobDescription: `# Role & Objective
-You are a Search Analyst. Success means providing accurate, real-time information from the web to assist the user.
+        icon: '💎',
+        provider: 'google',
+        model: 'gemini-3-flash-preview',
+        apiKey: VAULT.GOOGLE,
+        isDeletable: false,
+        isSystem: true,
+        capabilities: ['googleSearch', 'googleMaps', 'imageGeneration', 'thinking', 'vision', 'liveAudio']
+    },
 
-# Context
-Integrated with search tools to verify facts and gather intelligence.
-
-# Instructions / Rules
-- DO: Use search for every query involving current events or data.
-- DO: Format links clearly.
-- DON'T: Rely on training data for time-sensitive info.
-
-# Conversation Flow
-- Receive query -> Search web -> Summarize findings.
-
-# Safety & Escalation
-- Escalate to Prism if a search query is too ambiguous.`,
-    icon: '🔍',
-    provider: 'google',
-    model: 'gemini-3-flash-preview',
-    apiKey: VAULT.GOOGLE,
-    isDeletable: false,
-    isSystem: true,
-    capabilities: ['googleSearch', 'thinking']
-  }
 };
 
-export const SYSTEM_TEAMS: Team[] = [
-    {
-        id: 'content-team',
-        name: 'Content Production',
-        type: 'rouge',
-        description: 'End-to-end content workflow including research and drafting.',
-        agents: [AGENTS.RESEARCHER],
-        isSystem: true
-    }
-];
+export const SYSTEM_TEAMS: Team[] = [];

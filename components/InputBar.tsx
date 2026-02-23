@@ -131,21 +131,25 @@ export const InputBar: React.FC<InputBarProps> = ({
             </button>
           )}
 
-          <BetaLockedWrapper>
-            <button
-              className="px-4 py-1.5 bg-indigo-900/40 border border-indigo-500/20 text-indigo-400/40 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-not-allowed"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20" />
-              LiveTask
-            </button>
-          </BetaLockedWrapper>
+          {!isPrism && (
+            <>
+              <BetaLockedWrapper>
+                <button
+                  className="px-4 py-1.5 bg-indigo-900/40 border border-indigo-500/20 text-indigo-400/40 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-not-allowed"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20" />
+                  LiveTask
+                </button>
+              </BetaLockedWrapper>
 
-          <button
-            onClick={onSaveInterval}
-            className="px-4 py-1.5 bg-[#0a0a0a] border border-white/10 text-white/40 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:border-indigo-500/30"
-          >
-            Save Interval
-          </button>
+              <button
+                onClick={onSaveInterval}
+                className="px-4 py-1.5 bg-[#0a0a0a] border border-white/10 text-white/40 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:border-indigo-500/30"
+              >
+                Save Interval
+              </button>
+            </>
+          )}
         </div>
 
         {showMentions && filteredCandidates.length > 0 && (
