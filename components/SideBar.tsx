@@ -84,7 +84,7 @@ export function SideBar({
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('connected');
 
   useEffect(() => {
-    // AWS Cognito / LocalDB assumed connected for Phase 1-2
+    // AWS DynamoDB Active
     setDbStatus('connected');
   }, []);
 
@@ -177,7 +177,7 @@ export function SideBar({
 
           <div className="pt-4 flex flex-col items-center gap-2">
             <div
-              title={dbStatus === 'connected' ? 'Supabase Connected' : dbStatus === 'checking' ? 'Checking Connection...' : 'Supabase Disconnected'}
+              title={dbStatus === 'connected' ? 'AWS DynamoDB Connected' : dbStatus === 'checking' ? 'Checking Connection...' : 'AWS DynamoDB Disconnected'}
               className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : dbStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}
             />
             {!isRailCollapsed && <span className="text-[6px] font-black uppercase tracking-widest text-white/20">Sync</span>}

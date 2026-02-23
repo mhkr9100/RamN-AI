@@ -1,8 +1,5 @@
-/**
- * db.ts
- * Re-implemented Local IndexedDB Service for RamN AI Beta
- * Replaces the previously deleted db wrapper to allow local state persistence.
- */
+import { PutCommand, GetCommand, ScanCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { dynamoDb } from './awsConfig';
 
 export const STORES_ENUM = {
     INTERVALS: 'intervals',
@@ -14,94 +11,88 @@ export const STORES_ENUM = {
 
 type StoreName = typeof STORES_ENUM[keyof typeof STORES_ENUM];
 
-class DBService {
-    private dbName = 'RamNAI_LocalDB';
-    private dbVersion = 1;
-
-    private async getDB(): Promise<IDBDatabase> {
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open(this.dbName, this.dbVersion);
-
-            req.onupgradeneeded = () => {
-                const db = req.result;
-                Object.values(STORES_ENUM).forEach(store => {
-                    if (!db.objectStoreNames.contains(store)) {
-                        // Create object stores without keyPath so we can store arrays or objects mapping to explicit keys
-                        db.createObjectStore(store);
-                    }
-                });
-            };
-
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
+// Map local store names to DynamoDB Table Names
+const getTableName = (store: StoreName) => {
+    const prefix = 'RamN_';
+    switch (store) {
+        case STORES_ENUM.AGENTS: return `${prefix}Agents`;
+        case STORES_ENUM.GROUPS: return `${prefix}Groups`;
+        case STORES_ENUM.CHATS: return `${prefix}Chats`;
+        case STORES_ENUM.INTERVALS: return `${prefix}Intervals`;
+        case STORES_ENUM.TASKS: return `${prefix}Tasks`;
+        default: return `${prefix}Store`;
     }
+};
 
+class DBService {
     async put(storeName: StoreName, value: any, explicitKey?: string) {
         try {
-            const db = await this.getDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const key = explicitKey || (value && value.id ? value.id : undefined);
+            const key = explicitKey || (value && value.id ? value.id : undefined);
+            if (!key) throw new Error(`No key provided for store ${storeName}`);
 
-                if (!key) {
-                    return reject(new Error(`No key provided for store ${storeName}`));
-                }
+            const item = { ...value, id: key }; // Ensure 'id' is always the partition key
 
-                const req = store.put(value, key);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            });
+            await dynamoDb.send(new PutCommand({
+                TableName: getTableName(storeName),
+                Item: item
+            }));
+
         } catch (error) {
-            console.error(`Error putting into ${storeName}:`, error);
+            console.error(`DynamoDB Put Error [${storeName}]:`, error);
+            // Fallback to localStorage for development resilience
+            try {
+                const key = explicitKey || value.id;
+                localStorage.setItem(`ramn_${storeName}_${key}`, JSON.stringify(value));
+            } catch (e) { }
         }
     }
 
     async get<T>(storeName: StoreName, key: string): Promise<T | null> {
         try {
-            const db = await this.getDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const req = store.get(key);
-                req.onsuccess = () => resolve(req.result !== undefined ? (req.result as T) : null);
-                req.onerror = () => reject(req.error);
-            });
-        } catch (error) {
-            console.error(`Error getting from ${storeName}:`, error);
+            const response = await dynamoDb.send(new GetCommand({
+                TableName: getTableName(storeName),
+                Key: { id: key }
+            }));
+
+            if (response.Item) return response.Item as T;
             return null;
+        } catch (error) {
+            console.error(`DynamoDB Get Error [${storeName}]:`, error);
+            // Fallback Check
+            const localData = localStorage.getItem(`ramn_${storeName}_${key}`);
+            return localData ? JSON.parse(localData) as T : null;
         }
     }
 
     async getAll<T>(storeName: StoreName): Promise<T[]> {
         try {
-            const db = await this.getDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const req = store.getAll();
-                req.onsuccess = () => resolve((req.result as T[]) || []);
-                req.onerror = () => reject(req.error);
-            });
+            const response = await dynamoDb.send(new ScanCommand({
+                TableName: getTableName(storeName)
+            }));
+            return (response.Items as T[]) || [];
         } catch (error) {
-            console.error(`Error getting all from ${storeName}:`, error);
-            return [];
+            console.error(`DynamoDB Scan Error [${storeName}]:`, error);
+            // Fallback Check
+            const results: T[] = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith(`ramn_${storeName}_`)) {
+                    results.push(JSON.parse(localStorage.getItem(k) || '{}'));
+                }
+            }
+            return results;
         }
     }
 
     async delete(storeName: StoreName, key: string) {
         try {
-            const db = await this.getDB();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                const req = store.delete(key);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => reject(req.error);
-            });
+            await dynamoDb.send(new DeleteCommand({
+                TableName: getTableName(storeName),
+                Key: { id: key }
+            }));
         } catch (error) {
-            console.error(`Error deleting from ${storeName}:`, error);
+            console.error(`DynamoDB Delete Error [${storeName}]:`, error);
+            localStorage.removeItem(`ramn_${storeName}_${key}`);
         }
     }
 }

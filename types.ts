@@ -1,14 +1,14 @@
 
 export type AgentType = 'agent' | 'HR' | 'user' | 'custom';
 
-export type AgentCapability = 
-  | 'googleSearch' 
-  | 'googleMaps' 
-  | 'imageGeneration' 
-  | 'imageEditing' 
-  | 'videoGeneration' 
-  | 'speechGeneration' 
-  | 'transcription' 
+export type AgentCapability =
+  | 'googleSearch'
+  | 'googleMaps'
+  | 'imageGeneration'
+  | 'imageEditing'
+  | 'videoGeneration'
+  | 'speechGeneration'
+  | 'transcription'
   | 'thinking'
   | 'vision'
   | 'videoUnderstanding'
@@ -28,7 +28,7 @@ export interface ApiKeyEntry {
 }
 
 export interface UserProfile {
-  id: string; 
+  id: string;
   name: string;
   email: string;
   avatar?: string;
@@ -53,7 +53,7 @@ export interface GlobalTask {
 
 export interface ChatInterval {
   id: string;
-  targetId: string; 
+  targetId: string;
   name: string;
   messages: Message[];
   createdAt: number;
@@ -61,15 +61,15 @@ export interface ChatInterval {
 
 export interface Agent {
   id: string;
-  userId?: string; 
+  userId?: string;
   name: string;
   type: AgentType;
-  role: string; 
-  jobDescription: string; 
-  icon: string; 
+  role: string;
+  jobDescription: string;
+  icon: string;
   provider: 'google';
   model: string;
-  profileImage?: string; 
+  profileImage?: string;
   apiKey?: string;
   capabilities?: AgentCapability[];
   config?: {
@@ -81,21 +81,29 @@ export interface Agent {
   };
   isDeletable?: boolean;
   isSystem?: boolean;
-  isGroupMemberOnly?: boolean; 
-  isPM?: boolean; 
-  isLiveSpaceEnabled?: boolean; 
+  isGroupMemberOnly?: boolean;
+  isPM?: boolean;
+  isLiveSpaceEnabled?: boolean;
+  knowledgeBase?: {
+    id: string;
+    name: string;
+    url: string;
+    type: string;
+    size: number;
+    uploadedAt: number;
+  }[];
 }
 
 export interface ToolCall {
-    id: string;
-    name: string;
-    args: any;
-    safetyType?: 'READ_ONLY' | 'ACTION';
+  id: string;
+  name: string;
+  args: any;
+  safetyType?: 'READ_ONLY' | 'ACTION';
 }
 
 export interface Message {
   id: string;
-  userId?: string; 
+  userId?: string;
   agent: Agent;
   content: MessageContent;
   type: 'user' | 'agent';
@@ -103,9 +111,9 @@ export interface Message {
 }
 
 export interface Task {
-    id: string;
-    label: string;
-    status: 'pending' | 'working' | 'completed';
+  id: string;
+  label: string;
+  status: 'pending' | 'working' | 'completed';
 }
 
 export interface GroundingChunk {
@@ -114,61 +122,61 @@ export interface GroundingChunk {
 }
 
 export type MessageContent =
-  | { 
-      type: 'text'; 
-      text: string; 
-      solution?: string;
-      isExpanding?: boolean;
-      tasks?: Task[]; 
-      groundingChunks?: GroundingChunk[];
-      toolCall?: ToolCall;
-      isExecuting?: boolean;
-      mode?: 'CHAT' | 'SOLUTION' | 'TASK_PROPOSAL';
-    }
-  | { 
-      type: 'image'; 
-      imageUrl: string; 
-      mimeType: string; 
-      text?: string; 
-      solution?: string;
-      isExpanding?: boolean;
-      tasks?: Task[];
-      groundingChunks?: GroundingChunk[];
-      toolCall?: ToolCall;
-      isExecuting?: boolean;
-    }
   | {
-      type: 'video';
-      videoUrl: string;
-      text?: string;
-      solution?: string;
-      isExpanding?: boolean;
-      tasks?: Task[];
-      toolCall?: ToolCall;
-      isExecuting?: boolean;
-    }
+    type: 'text';
+    text: string;
+    solution?: string;
+    isExpanding?: boolean;
+    tasks?: Task[];
+    groundingChunks?: GroundingChunk[];
+    toolCall?: ToolCall;
+    isExecuting?: boolean;
+    mode?: 'CHAT' | 'SOLUTION' | 'TASK_PROPOSAL';
+  }
   | {
-      type: 'audio';
-      audioUrl: string;
-      text?: string;
-      solution?: string;
-      isExpanding?: boolean;
-      tasks?: Task[];
-      toolCall?: ToolCall;
-      isExecuting?: boolean;
-    };
+    type: 'image';
+    imageUrl: string;
+    mimeType: string;
+    text?: string;
+    solution?: string;
+    isExpanding?: boolean;
+    tasks?: Task[];
+    groundingChunks?: GroundingChunk[];
+    toolCall?: ToolCall;
+    isExecuting?: boolean;
+  }
+  | {
+    type: 'video';
+    videoUrl: string;
+    text?: string;
+    solution?: string;
+    isExpanding?: boolean;
+    tasks?: Task[];
+    toolCall?: ToolCall;
+    isExecuting?: boolean;
+  }
+  | {
+    type: 'audio';
+    audioUrl: string;
+    text?: string;
+    solution?: string;
+    isExpanding?: boolean;
+    tasks?: Task[];
+    toolCall?: ToolCall;
+    isExecuting?: boolean;
+  };
 
 export type TeamType = 'project' | 'rouge';
 
 export interface Team {
-    id: string;
-    userId?: string; 
-    name: string;
-    type: TeamType;
-    description?: string;
-    agents: Agent[];
-    isSystem?: boolean;
-    isLiveSpaceEnabled?: boolean; 
+  id: string;
+  userId?: string;
+  name: string;
+  type: TeamType;
+  description?: string;
+  agents: Agent[];
+  isSystem?: boolean;
+  isLiveSpaceEnabled?: boolean;
 }
 
 export interface AIModelProfile {

@@ -163,6 +163,14 @@ export async function generateSingleAgentResponse(
 
     systemPrompt += `[SYSTEM_INSTRUCTION]\n${agent.jobDescription}\n\n`;
 
+    if (agent.knowledgeBase && agent.knowledgeBase.length > 0) {
+        systemPrompt += `[KNOWLEDGE_BASE_CONTEXT]\nYou have access to the following strictly verified knowledge files uploaded by the user to your brain:\n`;
+        agent.knowledgeBase.forEach((doc, idx) => {
+            systemPrompt += `File ${idx + 1}: ${doc.name} (${doc.type}) - Located at: ${doc.url}\n`;
+        });
+        systemPrompt += `CRITICAL INSTRUCTION: When answering questions, prioritize the information contained in these files or their URLs if you are able to extract them. Since you are an expert agent, act as if this knowledge is natively yours.\n\n`;
+    }
+
     if (caps.length > 0) {
         systemPrompt += `[TOOLS_PROTOCOL]\nAvailable Tools: ${caps.join(', ')}.\n- Preambles: Before using a tool, explain why it's necessary.\n- Usage: Trigger the function call immediately after reasoning.\n\n`;
     }

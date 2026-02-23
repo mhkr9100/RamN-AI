@@ -1,11 +1,12 @@
-/**
- * AWS Cognito Authentication Service Wrapper
- * 
- * Provides common functionality for interacting with AWS Cognito API.
- */
-
-// Placeholder for Cognito User Pool logic. 
-// Can be implemented directly with amazon-cognito-identity-js or aws-amplify.
+import {
+    signUp,
+    confirmSignUp,
+    signIn,
+    signOut,
+    fetchAuthSession,
+    fetchUserAttributes,
+    getCurrentUser
+} from 'aws-amplify/auth';
 
 export interface UserSession {
     accessToken: string;
@@ -14,25 +15,62 @@ export interface UserSession {
 }
 
 export const authService = {
-    async login(username: string, password: string): Promise<UserSession> {
-        console.log("Mock Cognito login for:", username);
+    async login(email: string, password: string): Promise<UserSession> {
+        const { isSignedIn, nextStep } = await signIn({
+            username: email,
+            password
+        });
+
+        if (!isSignedIn && nextStep.signInStep === 'CONFIRM_SIGN_UP') {
+            throw new Error("User is not confirmed. Please verify your email first.");
+        }
+
+        const session = await fetchAuthSession();
         return {
-            accessToken: "mock_access",
-            idToken: "mock_id",
-            refreshToken: "mock_refresh"
+            accessToken: session.tokens?.accessToken?.toString() || '',
+            idToken: session.tokens?.idToken?.toString() || '',
+            refreshToken: 'mock_refresh' // Amplify v6 manages refresh automatically
         };
     },
 
     async logout() {
-        console.log("Mock Cognito logout");
+        await signOut();
     },
 
-    async signUp(username: string, password: string, email: string) {
-        console.log("Mock Cognito signup for:", email);
-        return { userConfirmed: false };
+    async signUp(name: string, password: string, email: string) {
+        const { isSignUpComplete, userId, nextStep } = await signUp({
+            username: email,
+            password,
+            options: {
+                userAttributes: {
+                    email,
+                    name
+                },
+                autoSignIn: true
+            }
+        });
+        return { isSignUpComplete, userId, nextStep };
+    },
+
+    async confirmSignUp(email: string, code: string) {
+        return await confirmSignUp({
+            username: email,
+            confirmationCode: code
+        });
     },
 
     async getCurrentUser() {
-        return { username: "mock_user" };
+        try {
+            const user = await getCurrentUser();
+            const attributes = await fetchUserAttributes();
+            return {
+                id: user.userId,
+                username: user.username,
+                email: attributes.email,
+                name: attributes.name
+            };
+        } catch (e) {
+            return null;
+        }
     }
 };

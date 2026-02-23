@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Agent, Team, Message, UserProfile, MessageContent, Task, ToolCall, GlobalTask } from '../types';
 import { AGENTS, SYSTEM_TEAMS } from '../constants';
-import { generateSingleAgentResponse, generatePrismResponse, dispatchGroupTask, executeInterceptedCommand, generateExpandedSolution } from '../services/geminiService';
+import { generateSingleAgentResponse, generatePrismResponse, dispatchGroupTask, executeInterceptedCommand, generateExpandedSolution } from '../services/aiService';
 import { dbService, STORES_ENUM } from '../services/db';
 import { authService } from '../services/auth';
 
@@ -76,13 +76,13 @@ export const useScatter = () => {
 
         const checkSession = async () => {
             try {
-                // Using AWS Cognito Mock
+                // Fetch AWS Cognito Session
                 const user = await authService.getCurrentUser();
                 if (user) {
                     const profile: UserProfile = {
-                        id: 'mock-id-123',
-                        email: user.username || '',
-                        name: user.username || 'Architect',
+                        id: user.id || 'aws-user-id',
+                        email: user.email || user.username || '',
+                        name: user.name || user.username || 'Architect',
                         avatar: ''
                     };
                     setCurrentUser(profile);
@@ -106,11 +106,21 @@ export const useScatter = () => {
         }
     }, [chatHistory, currentUser]);
 
-    const login = useCallback((email: string, name: string) => {
-        // This is called after successful Supabase auth
-        const user = { id: currentUser?.id || 'authenticated-user', email, name, avatar: '' };
-        setCurrentUser(user);
-    }, [currentUser?.id]);
+    const login = useCallback(async (email: string, name: string) => {
+        // This is called after successful AWS Auth
+        try {
+            const authUser = await authService.getCurrentUser();
+            const user = {
+                id: authUser?.id || `aws-${Date.now()}`,
+                email,
+                name,
+                avatar: ''
+            };
+            setCurrentUser(user);
+        } catch (e) {
+            console.error(e);
+        }
+    }, []);
 
     const logout = useCallback(async () => {
         await authService.logout();

@@ -3,6 +3,15 @@ import { Agent, AIModelProfile, AgentTemplate, AgentCapability, Team } from './t
 
 export const VAULT = {
     GOOGLE: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDno8x4_8tPs_UGgdXRR3I2gZ6IOJ8Eq6U',
+    AWS: {
+        REGION: import.meta.env.VITE_AWS_REGION || 'us-east-1',
+        COGNITO_USER_POOL_ID: import.meta.env.VITE_AWS_USER_POOL_ID || '',
+        COGNITO_CLIENT_ID: import.meta.env.VITE_AWS_CLIENT_ID || '',
+        COGNITO_IDENTITY_POOL_ID: import.meta.env.VITE_AWS_IDENTITY_POOL_ID || '',
+        ACCESS_KEY_ID: import.meta.env.VITE_AWS_ACCESS_KEY_ID || '',
+        SECRET_ACCESS_KEY: import.meta.env.VITE_AWS_SECRET_ACCESS_KEY || '',
+        S3_BUCKET_NAME: import.meta.env.VITE_AWS_S3_BUCKET_NAME || ''
+    }
 };
 
 export const AI_RESUMES: AIModelProfile[] = [
