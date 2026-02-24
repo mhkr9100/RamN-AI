@@ -176,6 +176,7 @@ const App: React.FC = () => {
                 userProfile={userProfile}
                 onContinueInterval={handleContinueInterval} onDeleteInterval={deleteInterval}
                 onClose={() => setIsProfileSidebarOpen(false)} onSaveAgent={(u) => setAgents(prev => prev.map(e => e.id === u.id ? u : e))} onSaveTeam={(u) => setTeams(prev => prev.map(g => g.id === u.id ? u : g))}
+                onDeleteAgent={deleteAgent} onDeleteTeam={deleteTeam}
               />
             )}
           </div>

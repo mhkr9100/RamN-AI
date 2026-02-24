@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Agent, Team, UserProfile, ChatInterval } from '../types';
 import { XMarkIcon } from './icons/XMarkIcon';
@@ -13,6 +12,8 @@ interface ProfileSidebarProps {
     onClose: () => void;
     onSaveAgent?: (agent: Agent) => void;
     onSaveTeam?: (team: Team) => void;
+    onDeleteAgent?: (id: string) => void;
+    onDeleteTeam?: (id: string) => void;
     onUpdateUserProfile?: (p: Partial<UserProfile>) => void;
     userProfile?: UserProfile;
     onContinueInterval?: (interval: ChatInterval) => void;
@@ -20,7 +21,7 @@ interface ProfileSidebarProps {
 }
 
 export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
-    isOpen, type, data, intervals = [], onClose, onSaveAgent, onSaveTeam, onUpdateUserProfile, userProfile, onContinueInterval, onDeleteInterval
+    isOpen, type, data, intervals = [], onClose, onSaveAgent, onSaveTeam, onDeleteAgent, onDeleteTeam, onUpdateUserProfile, userProfile, onContinueInterval, onDeleteInterval
 }) => {
     const [activeTab, setActiveTab] = useState<'profile' | 'history'>('profile');
 
@@ -57,7 +58,7 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
             const { url } = await s3Service.uploadKnowledgeDocument(file, data.id);
 
             setKnowledgeBase(prev => [...prev, {
-                id: `kb-${Date.now()}`,
+                id: `kb - ${Date.now()} `,
                 name: file.name,
                 url,
                 type: file.type,
@@ -84,10 +85,10 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
 
     const filteredIntervals = intervals.filter(i => i.targetId === data.id);
     const agent = data as Agent;
-    const brainProfile = AI_RESUMES.find(p => p.modelId === agent.model) || AI_RESUMES[0];
+    const brainProfile = AI_RESUMES.find(p => p.modelId === agent?.model) || AI_RESUMES[0];
 
     return (
-        <div className={`fixed top-0 right-0 h-full w-full max-w-sm md:max-w-md bg-[#1A1A1A] border-l border-white/5 shadow-2xl z-[50] transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className={`fixed top - 0 right - 0 h - full w - full max - w - sm md: max - w - md bg - [#1A1A1A] border - l border - white / 5 shadow - 2xl z - [50] transition - transform duration - 300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'} `}>
             <div className="flex flex-col h-full">
                 <div className="p-6 border-b border-white/5 bg-[#1A1A1A]">
                     <div className="flex items-center justify-between mb-4">
@@ -95,8 +96,8 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
                         <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors"><XMarkIcon /></button>
                     </div>
                     <div className="flex gap-6 border-b border-white/5 -mb-6">
-                        <button onClick={() => setActiveTab('profile')} className={`pb-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'profile' ? 'text-white border-white' : 'text-slate-600 border-transparent'}`}>Protocol</button>
-                        <button onClick={() => setActiveTab('history')} className={`pb-3 text-[10px] font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'history' ? 'text-white border-white' : 'text-slate-600 border-transparent'}`}>History</button>
+                        <button onClick={() => setActiveTab('profile')} className={`pb - 3 text - [10px] font - black uppercase tracking - widest border - b - 2 transition - all ${activeTab === 'profile' ? 'text-white border-white' : 'text-slate-600 border-transparent'} `}>Protocol</button>
+                        <button onClick={() => setActiveTab('history')} className={`pb - 3 text - [10px] font - black uppercase tracking - widest border - b - 2 transition - all ${activeTab === 'history' ? 'text-white border-white' : 'text-slate-600 border-transparent'} `}>History</button>
                     </div>
                 </div>
 
@@ -130,45 +131,6 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
                                                     <textarea value={jd} onChange={e => setJd(e.target.value)} rows={8} className="w-full bg-black border border-white/10 rounded-xl p-3 text-[11px] font-mono leading-relaxed text-slate-300 resize-none focus:border-white outline-none transition-colors mb-6" />
                                                 </div>
 
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Knowledge Base</label>
-                                                        <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded uppercase tracking-wider font-bold">AWS S3</span>
-                                                    </div>
-
-                                                    <div className="space-y-2 mb-6">
-                                                        {knowledgeBase.map(doc => (
-                                                            <div key={doc.id} className="flex items-center justify-between bg-white/[0.02] border border-white/10 rounded-lg p-3">
-                                                                <div className="flex flex-1 items-center gap-3 overflow-hidden">
-                                                                    <span className="text-lg">📄</span>
-                                                                    <div className="truncate pr-4">
-                                                                        <div className="text-[11px] font-bold text-slate-300 truncate">{doc.name}</div>
-                                                                        <div className="text-[9px] text-slate-500 uppercase tracking-widest">{(doc.size / 1024).toFixed(1)} KB</div>
-                                                                    </div>
-                                                                </div>
-                                                                <button onClick={() => setKnowledgeBase(prev => prev.filter(k => k.id !== doc.id))} className="text-red-500/50 hover:text-red-400 p-1 flex-shrink-0 relative z-10 transition-colors">
-                                                                    <XMarkIcon />
-                                                                </button>
-                                                            </div>
-                                                        ))}
-
-                                                        <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${isUploading ? 'bg-white/5 border-white/20' : 'bg-black border-white/10 hover:bg-white/5 hover:border-white/30'}`}>
-                                                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                                                {isUploading ? (
-                                                                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                                                                ) : (
-                                                                    <>
-                                                                        <svg className="w-6 h-6 mb-2 text-white/40" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" /></svg>
-                                                                        <p className="mb-1 text-[10px] text-white/60 font-bold"><span className="text-white">Click to upload</span></p>
-                                                                        <p className="text-[8px] uppercase tracking-widest text-white/40">PDF, TXT, DOCX</p>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                            <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} accept=".pdf,.txt,.docx,.csv,.md" />
-                                                        </label>
-                                                    </div>
-                                                </div>
-
                                                 {(agent.capabilities || []).length > 0 && (
                                                     <div>
                                                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">Tools</label>
@@ -186,9 +148,84 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
                                     </>
                                 )}
 
+                                {type !== 'prism' && (
+                                    <div className="pt-4 border-t border-white/5">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Knowledge Base</label>
+                                            <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded uppercase tracking-wider font-bold">AWS S3</span>
+                                        </div>
+
+                                        <div className="space-y-2 mb-6">
+                                            {knowledgeBase.map(doc => (
+                                                <div key={doc.id} className="flex items-center justify-between bg-white/[0.02] border border-white/10 rounded-lg p-3">
+                                                    <div className="flex flex-1 items-center gap-3 overflow-hidden">
+                                                        <span className="text-lg">📄</span>
+                                                        <div className="truncate pr-4">
+                                                            <div className="text-[11px] font-bold text-slate-300 truncate">{doc.name}</div>
+                                                            <div className="text-[9px] text-slate-500 uppercase tracking-widest">{(doc.size / 1024).toFixed(1)} KB</div>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => setKnowledgeBase(prev => prev.filter(k => k.id !== doc.id))} className="text-red-500/50 hover:text-red-400 p-1 flex-shrink-0 relative z-10 transition-colors">
+                                                        <XMarkIcon />
+                                                    </button>
+                                                </div>
+                                            ))}
+
+                                            <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-xl cursor-pointer transition-colors ${isUploading ? 'bg-white/5 border-white/20' : 'bg-black border-white/10 hover:bg-white/5 hover:border-white/30'}`}>
+                                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                                    {isUploading ? (
+                                                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                                    ) : (
+                                                        <>
+                                                            <svg className="w-6 h-6 mb-2 text-white/40" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16"><path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" /></svg>
+                                                            <p className="mb-1 text-[10px] text-white/60 font-bold"><span className="text-white">Click to upload</span></p>
+                                                            <p className="text-[8px] uppercase tracking-widest text-white/40">PDF, TXT, DOCX</p>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <input type="file" className="hidden" onChange={handleFileUpload} disabled={isUploading} accept=".pdf,.txt,.docx,.csv,.md" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {type === 'team' && (
+                                    <div className="space-y-3 pt-4 border-t border-white/5">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Enrolled Units ({(data as Team).agents.length})</label>
+                                        <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                            {(data as Team).agents.map(a => (
+                                                <div key={a.id} className="flex items-center gap-3 p-3 bg-white/[0.02] border border-white/10 rounded-xl">
+                                                    <div className="w-8 h-8 rounded-lg bg-black/50 border border-white/5 flex items-center justify-center text-lg grayscale opacity-70">
+                                                        {a.icon}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h5 className="text-[11px] font-bold text-white uppercase tracking-wider truncate">{a.name}</h5>
+                                                        <p className="text-[9px] text-white/40 font-mono truncate">{a.role}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-6 space-y-3">
                                 <button onClick={handleSave} className="w-full py-4 bg-white text-black text-[11px] font-black uppercase tracking-[0.3em] rounded-xl transition-all shadow-xl active:scale-[0.98]">
                                     Update {type === 'prism' ? 'Protocol' : 'Profile'}
                                 </button>
+
+                                {type !== 'prism' && (
+                                    <button
+                                        onClick={() => {
+                                            if (type === 'team') onDeleteTeam?.(data.id);
+                                            else onDeleteAgent?.(data.id);
+                                            onClose();
+                                        }}
+                                        className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl transition-all active:scale-[0.98]"
+                                    >
+                                        Delete {type === 'team' ? 'Squad' : 'Agent'}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ) : (

@@ -84,11 +84,11 @@ const CAPABILITY_TOOLS: Record<string, FunctionDeclaration> = {
                     type: Type.STRING,
                     description: 'MANDATORY: Must use headers: # Role & Objective, # Context, # Instructions / Rules, # Conversation Flow, # Safety & Escalation.'
                 },
-                suggestedModel: { type: Type.STRING, description: 'Your recommended AI model for this specific role (e.g. Gemini 3 Pro).' },
+                modelId: { type: Type.STRING, description: 'MANDATORY: Give the specific AI model string. Follow guidelines specified in system prompt based on user API keys.' },
                 icon: { type: Type.STRING, description: 'Single emoji icon.' },
                 capabilities: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Enabled tools.' }
             },
-            required: ['name', 'role', 'jobDescription', 'suggestedModel', 'icon']
+            required: ['name', 'role', 'jobDescription', 'modelId', 'icon']
         }
     },
     fabricateTeam: {
@@ -107,11 +107,11 @@ const CAPABILITY_TOOLS: Record<string, FunctionDeclaration> = {
                             name: { type: Type.STRING },
                             role: { type: Type.STRING },
                             jobDescription: { type: Type.STRING, description: 'MANDATORY: Follow the 5-section system prompt format.' },
-                            suggestedModel: { type: Type.STRING, description: 'Recommend which model should power this unit.' },
+                            modelId: { type: Type.STRING, description: 'MANDATORY: Ensure model selection adheres strictly to user API configurations.' },
                             icon: { type: Type.STRING },
                             capabilities: { type: Type.ARRAY, items: { type: Type.STRING } }
                         },
-                        required: ['name', 'role', 'jobDescription', 'suggestedModel', 'icon']
+                        required: ['name', 'role', 'jobDescription', 'modelId', 'icon']
                     }
                 }
             },
@@ -312,9 +312,15 @@ export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall
     }
 }
 
-export async function generatePrismResponse(history: Message[], prismAgent: Agent, setStatus: (s: string) => void, apiKey?: string) {
+export async function generatePrismResponse(history: Message[], prismAgent: Agent, setStatus: (s: string) => void, apiKey?: string, availableProviders?: string) {
     setStatus("Refracting...");
-    return generateSingleAgentResponse(history, prismAgent, [], [], 'CHAT', apiKey);
+    let modifiedPrism = { ...prismAgent };
+    if (availableProviders && availableProviders.length > 0) {
+        modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user ONLY has access to the following AI Providers: ${availableProviders}. When fabricating agents or teams using tools, you MUST set the 'modelId' exclusively to one of the models from these providers.`;
+    } else {
+        modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user has no external API keys configured. You MUST use 'gemini-1.5-flash-8b' as the 'modelId' for all agents fabricated via tools.`;
+    }
+    return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', apiKey);
 }
 
 export async function dispatchGroupTask(userPrompt: string, groupAgents: Agent[], apiKey?: string) {

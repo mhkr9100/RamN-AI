@@ -16,15 +16,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
     const [name, setName] = useState(user.name);
     const [email, setEmail] = useState(user.email);
     const [avatar, setAvatar] = useState(user.avatar || '');
-    const [localApiKeys, setLocalApiKeys] = useState<ApiKeyEntry[]>([{service: '', key: ''}]);
+    const [localApiKeys, setLocalApiKeys] = useState<ApiKeyEntry[]>([{ service: '', key: '' }]);
     const [localUserMap, setLocalUserMap] = useState<UserMapNode>(user.userMap || { id: 'root', label: 'My Ecosystem', children: [] });
     const [activeTab, setActiveTab] = useState<'identity' | 'keys' | 'map'>('identity');
 
     useEffect(() => {
         if (user.apiKeys && user.apiKeys.length > 0) {
-            setLocalApiKeys([...user.apiKeys, {service: '', key: ''}]);
+            setLocalApiKeys([...user.apiKeys, { service: '', key: '' }]);
         } else {
-            setLocalApiKeys([{service: '', key: ''}]);
+            setLocalApiKeys([{ service: '', key: '' }]);
         }
     }, [user.apiKeys]);
 
@@ -33,10 +33,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
     const handleKeyChange = (index: number, field: 'service' | 'key', value: string) => {
         const newKeys = [...localApiKeys];
         newKeys[index] = { ...newKeys[index], [field]: value };
-        
+
         // If the last key is being filled, add a new empty one
         if (index === newKeys.length - 1 && value.trim() !== '') {
-            newKeys.push({service: '', key: ''});
+            newKeys.push({ service: '', key: '' });
         }
         setLocalApiKeys(newKeys);
     };
@@ -59,26 +59,26 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                 </div>
 
                 <div className="flex border-b border-white/5 bg-black/20 flex-shrink-0">
-                    <button 
+                    <button
                         onClick={() => setActiveTab('identity')}
                         className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'identity' ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
                     >
                         Identity
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('keys')}
                         className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'keys' ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
                     >
                         API Keys
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('map')}
                         className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'map' ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
                     >
                         UserMap
                     </button>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
                     <form onSubmit={handleSubmit} className="space-y-8">
                         {activeTab === 'identity' && (
@@ -101,10 +101,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                                             <p className="text-sm text-white font-medium">{email}</p>
                                         </div>
                                         <label className="block text-[10px] font-black text-white/30 uppercase tracking-widest mb-2">Display Name</label>
-                                        <input 
-                                            type="text" 
-                                            value={name} 
-                                            onChange={(e) => setName(e.target.value)} 
+                                        <input
+                                            type="text"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
                                             className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl p-3 text-sm text-white focus:border-white outline-none transition-all"
                                             required
                                         />
@@ -121,26 +121,36 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                                         Prism Core uses platform-provided keys. All other agents require your own API keys to function.
                                     </p>
                                 </div>
-                                
-                                <div className="space-y-3">
-                                    {localApiKeys.map((entry, idx) => (
-                                        <div key={idx} className="flex gap-2">
-                                            <input 
-                                                type="text"
-                                                value={entry.service}
-                                                onChange={e => handleKeyChange(idx, 'service', e.target.value)}
-                                                placeholder="Service (e.g. Gemini, OpenAI)"
-                                                className="w-1/3 bg-black border border-white/10 rounded-xl p-3 text-[10px] font-mono text-white focus:border-indigo-500 outline-none transition-all"
-                                            />
-                                            <input 
-                                                type="password"
-                                                value={entry.key}
-                                                onChange={e => handleKeyChange(idx, 'key', e.target.value)}
-                                                placeholder="API Key (sk-...)"
-                                                className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
-                                            />
-                                        </div>
-                                    ))}
+
+                                <div className="space-y-4">
+                                    {[
+                                        { id: 'Google (Gemini)', placeholder: 'AIza...' },
+                                        { id: 'Anthropic (Claude)', placeholder: 'sk-ant-...' },
+                                        { id: 'OpenAI (ChatGPT)', placeholder: 'sk-proj-...' }
+                                    ].map((provider) => {
+                                        const existingKey = localApiKeys.find(k => k.service === provider.id)?.key || '';
+                                        return (
+                                            <div key={provider.id} className="flex gap-4 items-center">
+                                                <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                                    {provider.id}
+                                                </div>
+                                                <input
+                                                    type="password"
+                                                    value={existingKey}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        setLocalApiKeys(prev => {
+                                                            const filtered = prev.filter(k => k.service !== provider.id && k.service !== '');
+                                                            if (val.trim() === '') return filtered;
+                                                            return [...filtered, { service: provider.id, key: val }];
+                                                        });
+                                                    }}
+                                                    placeholder={`API Key (${provider.placeholder})`}
+                                                    className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -155,25 +165,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                                 </div>
 
                                 <div className="bg-black/40 rounded-2xl p-6 border border-white/5 min-h-[300px]">
-                                    <UserMapEditor 
-                                        node={localUserMap} 
-                                        onUpdate={setLocalUserMap} 
+                                    <UserMapEditor
+                                        node={localUserMap}
+                                        onUpdate={setLocalUserMap}
                                     />
                                 </div>
                             </div>
                         )}
 
                         <div className="pt-4 flex flex-col gap-3 flex-shrink-0">
-                            <button 
+                            <button
                                 type="submit"
                                 className="w-full py-4 bg-white text-black text-[11px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl active:scale-[0.98]"
                             >
                                 Save Profile Changes
                             </button>
-                            
+
                             {onLogout && (
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={onLogout}
                                     className="w-full py-3 text-red-500/80 hover:text-red-500 text-[10px] font-black uppercase tracking-widest transition-all"
                                 >

@@ -287,7 +287,18 @@ export const useScatter = () => {
 
     const handleRoute = async (objective: string) => {
         setPrismStatus("Routing: Formulating Specialists...");
-        const routePrompt = `The user wants to accomplish the following objective: "${objective}". Please output ONLY a JSON array of up to 3 highly specialized AI agents that would be perfect for this job. For each agent, provide: name (a very short catchy name like 'Architect' or 'Analyst'), role (short title), modelId (use 'gemini-3-flash-preview'), and systemPrompt (a detailed prompt giving them extreme expertise). The output must be valid raw JSON.`;
+
+        let availableProviders = "";
+        const keys = currentUser?.apiKeys || [];
+        if (keys.some(k => k.service === 'Google (Gemini)')) availableProviders += "Google Gemini (gemini-1.5-pro, gemini-1.5-flash), ";
+        if (keys.some(k => k.service === 'Anthropic (Claude)')) availableProviders += "Anthropic Claude (claude-3-5-sonnet, claude-3-opus), ";
+        if (keys.some(k => k.service === 'OpenAI (ChatGPT)')) availableProviders += "OpenAI (gpt-4o, gpt-4o-mini).";
+
+        const providerContext = availableProviders
+            ? `The user ONLY has access to the following AI Providers: ${availableProviders}. You MUST select a valid modelId matching one of these explicitly available providers.`
+            : `The user has no external API keys configured. You MUST use 'gemini-1.5-flash-8b' as the modelId for all agents.`;
+
+        const routePrompt = `The user wants to accomplish the following objective: "${objective}". Please output ONLY a JSON array of up to 3 highly specialized AI agents that would be perfect for this job. For each agent, provide: name (a very short catchy name like 'Architect' or 'Analyst'), role (short title), modelId (use a valid model string based on providers), and systemPrompt (a detailed prompt giving them extreme expertise). ${providerContext} The output must be valid raw JSON.`;
 
         try {
             const apiKey = getApiKeyForAgent(AGENTS.PRISM);
@@ -413,19 +424,46 @@ export const useScatter = () => {
                         }
                     }));
                 } else {
-                    // Fallback to Prism if no specific specialist is mentioned
-                    setPrismStatus("No mention detected. Consulting Core...");
-                    const apiKey = getApiKeyForAgent(AGENTS.PRISM);
-                    const response = await generatePrismResponse(currentSnapshot, AGENTS.PRISM, setPrismStatus, apiKey || undefined);
-                    if (response) {
-                        addMessage(chatId, {
-                            id: `msg-${Date.now()}`,
-                            userId: currentUser.id,
-                            agent: AGENTS.PRISM,
-                            content: response,
-                            type: 'agent'
-                        });
-                    }
+                    // Fallback: Broadcast to all agents in the squad
+                    setPrismStatus(`Broadcasting to Squad (${team.agents.length} units)...`);
+
+                    // Update weights visually
+                    const weights: Record<string, number> = {};
+                    team.agents.forEach(a => weights[a.id] = 1 / team.agents.length);
+                    setOrchestrationWeights(weights);
+
+                    setTypingAgents(team.agents.map(a => ({
+                        agent: a,
+                        tasks: [],
+                        mode: 'CHAT'
+                    })));
+
+                    // Call all agents in parallel
+                    await Promise.all(team.agents.map(async (targetAgent) => {
+                        const apiKey = getApiKeyForAgent(targetAgent);
+
+                        if (targetAgent.id !== 'prism-core' && apiKey === null) {
+                            addMessage(chatId, {
+                                id: `msg-${Date.now()}-${targetAgent.id}`,
+                                userId: currentUser.id,
+                                agent: targetAgent,
+                                content: { type: 'text', text: "⚠️ **API Key Required**: Please add your API key for this provider in your User Profile (bottom left) to use this agent." },
+                                type: 'agent'
+                            });
+                            return;
+                        }
+
+                        const response = await generateSingleAgentResponse(currentSnapshot, targetAgent, team.agents, [], 'CHAT', apiKey || undefined);
+                        if (response) {
+                            addMessage(chatId, {
+                                id: `msg-${Date.now()}-${targetAgent.id}`,
+                                userId: currentUser.id,
+                                agent: targetAgent,
+                                content: response,
+                                type: 'agent'
+                            });
+                        }
+                    }));
                 }
             } else if (agent || chatId === 'prism-core') {
                 const target = agent || AGENTS.PRISM;
@@ -444,7 +482,18 @@ export const useScatter = () => {
                 }
 
                 setTypingAgent(target);
-                const response = await generateSingleAgentResponse(currentSnapshot, target, [], [], 'CHAT', apiKey || undefined);
+                let response;
+                if (target.id === 'prism-core') {
+                    let availableProviders = "";
+                    const keys = currentUser?.apiKeys || [];
+                    if (keys.some(k => k.service === 'Google (Gemini)')) availableProviders += "Google Gemini (gemini-1.5-pro, gemini-1.5-flash), ";
+                    if (keys.some(k => k.service === 'Anthropic (Claude)')) availableProviders += "Anthropic Claude (claude-3-5-sonnet, claude-3-opus), ";
+                    if (keys.some(k => k.service === 'OpenAI (ChatGPT)')) availableProviders += "OpenAI (gpt-4o, gpt-4o-mini).";
+                    response = await generatePrismResponse(currentSnapshot, target, setPrismStatus, apiKey || undefined, availableProviders);
+                } else {
+                    response = await generateSingleAgentResponse(currentSnapshot, target, [], [], 'CHAT', apiKey || undefined);
+                }
+
                 if (response) addMessage(chatId, { id: `msg-${Date.now()}`, userId: currentUser.id, agent: target, content: response, type: 'agent' });
             }
         } finally {
