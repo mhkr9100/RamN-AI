@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 .npm_cache/\n.DS_Store
 .DS_Store
+
+# Endpoints Config
+.env
+.env.*
+!.env.example
