@@ -83,6 +83,7 @@ export function SideBar({
   const [isChatSubSidebarCollapsed, setIsChatSubSidebarCollapsed] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('connected');
 
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
@@ -99,6 +100,7 @@ export function SideBar({
         createdAt: Date.now()
       });
       setFeedback('');
+      setIsFeedbackModalOpen(false);
     } catch (error) {
       console.error("Failed to submit feedback", error);
     } finally {
@@ -117,7 +119,7 @@ export function SideBar({
   };
 
   return (
-    <div className="flex h-full z-30 transition-all duration-300">
+    <div className="flex h-full z-30 transition-all duration-300 relative">
       {/* Navigation Rail */}
       <div className={`${isRailCollapsed ? 'w-14' : 'w-20'} bg-[#1A1A1A] border-r border-white/5 flex flex-col items-center py-6 space-y-8 flex-shrink-0 transition-all duration-300`}>
         <button onClick={() => onViewChange('home')} title="Home" className="p-2 text-white/40 hover:text-white transition-all transform hover:scale-110 flex flex-col items-center gap-2">
@@ -186,23 +188,14 @@ export function SideBar({
           </BetaLockedWrapper>
 
           <div className="w-full px-2 mb-2">
-            {!isRailCollapsed ? (
-              <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-1 w-full relative">
-                <input
-                  type="text"
-                  value={feedback}
-                  onChange={e => setFeedback(e.target.value)}
-                  placeholder="Feedback..."
-                  disabled={isSubmittingFeedback}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 px-2 text-[9px] text-white placeholder-white/30 focus:border-white/30 focus:bg-white/10 outline-none transition-all disabled:opacity-50"
-                />
-                {isSubmittingFeedback && <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 border-[1px] border-white/30 border-t-white rounded-full animate-spin" />}
-              </form>
-            ) : (
-              <button title="Feedback" className="p-2 text-white/40 hover:text-white transition-all w-full flex flex-col items-center justify-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" /></svg>
-              </button>
-            )}
+            <button
+              onClick={() => setIsFeedbackModalOpen(true)}
+              title="Feedback"
+              className="p-2 text-white/40 hover:text-white transition-all w-full flex flex-col items-center justify-center gap-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" /></svg>
+              {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Feedback</span>}
+            </button>
           </div>
 
           <button
@@ -259,6 +252,52 @@ export function SideBar({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* FEEDBACK MODAL */}
+      {isFeedbackModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div
+            className="absolute inset-0"
+            onClick={() => !isSubmittingFeedback && setIsFeedbackModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-[#1A1A1A] border border-white/10 rounded-2xl shadow-[0_0_100px_rgba(0,0,0,1)] p-6 animate-in slide-in-from-bottom-8 duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-display font-extrabold text-white tracking-tight">Got Feedback?</h2>
+              <button
+                onClick={() => !isSubmittingFeedback && setIsFeedbackModalOpen(false)}
+                className="p-2 text-white/40 hover:text-white transition-colors rounded-full hover:bg-white/5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-4">
+              <textarea
+                placeholder="Tell us what's on your mind. Bugs, features, or just weird vibes..."
+                value={feedback}
+                onChange={e => setFeedback(e.target.value)}
+                disabled={isSubmittingFeedback}
+                rows={4}
+                className="w-full bg-black/40 border border-white/10 hover:border-white/20 focus:border-white/40 rounded-xl p-4 text-sm text-white placeholder-white/30 resize-none outline-none transition-all disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={!feedback.trim() || isSubmittingFeedback}
+                className="w-full py-4 bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] rounded-xl hover:bg-slate-200 transition-all active:scale-95 shadow-xl disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmittingFeedback ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  'Send to Dev Team'
+                )}
+              </button>
+            </form>
           </div>
         </div>
       )}

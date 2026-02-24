@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
-import { AGENTS, AI_RESUMES } from "../constants";
+import { AGENTS, AI_RESUMES, VAULT } from "../constants";
 
 /**
  * ROBUST API CALL WRAPPER
@@ -10,7 +10,8 @@ async function executeWithRetry<T>(operation: (ai: GoogleGenAI) => Promise<T>, a
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
         try {
-            const ai = new GoogleGenAI({ apiKey: apiKey || import.meta.env.VITE_GEMINI_API_KEY || "" });
+            const finalKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY || (typeof VAULT !== 'undefined' ? VAULT.GOOGLE : undefined);
+            const ai = new GoogleGenAI({ apiKey: finalKey as string });
             return await operation(ai);
         } catch (error: any) {
             lastError = error;

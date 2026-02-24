@@ -41,13 +41,13 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                 <div className="flex gap-3">
 
                     <button
-                        onClick={() => scrollToSection(1)}
+                        onClick={() => scrollToSection(0)}
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
                         Your Agents & Groups
                     </button>
                     <button
-                        onClick={() => scrollToSection(2)}
+                        onClick={() => scrollToSection(1)}
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
                         Special Agents
