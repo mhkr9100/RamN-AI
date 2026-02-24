@@ -27,12 +27,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartPrismChat }
                         <div className="absolute inset-0 blur-3xl bg-white/5 -z-10 opacity-60" />
                     </div>
 
-                    <h1 className="font-display text-6xl md:text-8xl font-extrabold text-white tracking-[-0.04em] mb-8 leading-[0.9]">
+                    <h1 className="font-display text-6xl md:text-8xl font-extrabold text-white tracking-[-0.04em] mb-4 leading-[0.9]">
                         RamN <span className="font-light italic opacity-40 text-slate-200">AI</span>
+                        <span className="text-[12px] uppercase tracking-widest text-slate-500 font-bold ml-4 align-top border border-white/10 bg-white/5 rounded px-2 py-0.5">Beta</span>
                     </h1>
 
-                    <p className="text-slate-400 text-sm font-medium tracking-[0.4em] uppercase mb-16 max-w-lg leading-relaxed">
-                        Beta v1.0 • <span className="text-white border-b border-white/20 pb-0.5">Multi-Agent Workspace</span>
+                    <p className="text-slate-400 text-sm font-medium tracking-[0.4em] uppercase mb-16 max-w-lg leading-relaxed mt-4">
+                        <span className="text-white border-b border-white/20 pb-0.5">Multi-Agent Workspace</span>
                     </p>
 
                     <div className="w-full relative group max-w-xl">
@@ -69,7 +70,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartPrismChat }
                                     onClick={() => onStartPrismChat(suggestion.prompt)}
                                     className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 transition-all text-sm text-slate-300 hover:text-white"
                                 >
-                                    <span>{suggestion.icon}</span>
+                                    <span className="grayscale contrast-200 opacity-60">{suggestion.icon}</span>
                                     <span>{suggestion.label}</span>
                                 </button>
                             ))}
@@ -109,7 +110,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStartPrismChat }
                 <div className="pt-48 pb-24 border-t border-white/5 text-center flex flex-col items-center gap-10">
                     <RamanIcon size={60} className="opacity-40" />
                     <p className="text-[10px] text-slate-600 font-black tracking-[1.5em] uppercase">
-                        RamN AI Protocol • v1.0-BETA
+                        RamN AI
                     </p>
                 </div>
             </div>

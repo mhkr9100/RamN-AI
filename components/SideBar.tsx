@@ -48,7 +48,7 @@ const ChatListItem: React.FC<{
     <div className={`group relative flex items-center gap-2.5 w-full text-left p-2 rounded-lg text-sm transition-all duration-200 cursor-pointer border border-transparent ${isActive ? "bg-white text-black font-bold" : "text-white/60 hover:text-white hover:bg-white/5"}`}
       onClick={() => onClick(id)}
     >
-      <div className={`flex-shrink-0 ${isActive ? 'text-black' : 'text-white/40 group-hover:text-white/80'}`}>
+      <div className={`flex-shrink-0 grayscale contrast-200 opacity-80 ${isActive ? 'text-black' : 'text-white/40 group-hover:text-white/80'}`}>
         {icon || <span className="text-xs font-bold tracking-tighter uppercase">ID</span>}
       </div>
       <div className="flex-1 truncate font-medium uppercase tracking-widest text-[10px]">{name}</div>
@@ -83,6 +83,29 @@ export function SideBar({
   const [isChatSubSidebarCollapsed, setIsChatSubSidebarCollapsed] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('connected');
 
+  const [feedback, setFeedback] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedback.trim()) return;
+    setIsSubmittingFeedback(true);
+    try {
+      const { dbService, STORES_ENUM } = await import('../services/db');
+      await dbService.put(STORES_ENUM.FEEDBACK, {
+        id: Date.now().toString(),
+        userId: userProfile.id,
+        text: feedback,
+        createdAt: Date.now()
+      });
+      setFeedback('');
+    } catch (error) {
+      console.error("Failed to submit feedback", error);
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
+
   useEffect(() => {
     // AWS DynamoDB Active
     setDbStatus('connected');
@@ -98,7 +121,10 @@ export function SideBar({
       {/* Navigation Rail */}
       <div className={`${isRailCollapsed ? 'w-14' : 'w-20'} bg-[#1A1A1A] border-r border-white/5 flex flex-col items-center py-6 space-y-8 flex-shrink-0 transition-all duration-300`}>
         <button onClick={() => onViewChange('home')} title="Home" className="p-2 text-white/40 hover:text-white transition-all transform hover:scale-110 flex flex-col items-center gap-2">
-          <RamanIcon size={32} />
+          <div className="relative">
+            <RamanIcon size={32} />
+            <span className="absolute -top-1 -right-3 text-[5px] font-black uppercase tracking-widest text-slate-500 border border-slate-600 rounded px-1 backdrop-blur-md">Beta</span>
+          </div>
           {!isRailCollapsed && <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white">RamN AI</span>}
         </button>
 
@@ -158,6 +184,26 @@ export function SideBar({
               {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest">Work</span>}
             </button>
           </BetaLockedWrapper>
+
+          <div className="w-full px-2 mb-2">
+            {!isRailCollapsed ? (
+              <form onSubmit={handleFeedbackSubmit} className="flex flex-col gap-1 w-full relative">
+                <input
+                  type="text"
+                  value={feedback}
+                  onChange={e => setFeedback(e.target.value)}
+                  placeholder="Feedback..."
+                  disabled={isSubmittingFeedback}
+                  className="w-full bg-white/5 border border-white/10 rounded-lg py-1.5 px-2 text-[9px] text-white placeholder-white/30 focus:border-white/30 focus:bg-white/10 outline-none transition-all disabled:opacity-50"
+                />
+                {isSubmittingFeedback && <div className="absolute right-2 top-1/2 -translate-y-1/2 w-2 h-2 border-[1px] border-white/30 border-t-white rounded-full animate-spin" />}
+              </form>
+            ) : (
+              <button title="Feedback" className="p-2 text-white/40 hover:text-white transition-all w-full flex flex-col items-center justify-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" /></svg>
+              </button>
+            )}
+          </div>
 
           <button
             onClick={() => onViewChange('media')}

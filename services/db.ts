@@ -6,7 +6,8 @@ export const STORES_ENUM = {
     AGENTS: 'agents',
     GROUPS: 'groups',
     CHATS: 'chats',
-    TASKS: 'tasks'
+    TASKS: 'tasks',
+    FEEDBACK: 'feedback'
 } as const;
 
 type StoreName = typeof STORES_ENUM[keyof typeof STORES_ENUM];
@@ -20,6 +21,7 @@ const getTableName = (store: StoreName) => {
         case STORES_ENUM.CHATS: return `${prefix}Chats`;
         case STORES_ENUM.INTERVALS: return `${prefix}Intervals`;
         case STORES_ENUM.TASKS: return `${prefix}Tasks`;
+        case STORES_ENUM.FEEDBACK: return `${prefix}Feedback`;
         default: return `${prefix}Store`;
     }
 };
