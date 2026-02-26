@@ -116,12 +116,14 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
                                             <input value={name} onChange={e => setName(e.target.value)} disabled={type === 'prism'} className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm text-white focus:border-white outline-none transition-colors disabled:opacity-50" />
                                         </div>
 
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">AI Model</label>
-                                            <div className="w-full bg-black border border-white/10 rounded-xl p-3 text-[11px] font-mono text-white/60">
-                                                {brainProfile?.name || agent.model}
+                                        {type !== 'prism' && (
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">AI Model</label>
+                                                <div className="w-full bg-black border border-white/10 rounded-xl p-3 text-[11px] font-mono text-white/60">
+                                                    {brainProfile?.name || agent.model}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
 
                                         {type !== 'prism' && (
                                             <>
@@ -132,7 +134,7 @@ export const ProfileSidebar: React.FC<ProfileSidebarProps> = ({
 
                                                 <div>
                                                     <div className="flex items-center justify-between mb-3">
-                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Knowledge Base</label>
+                                                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Memory Data (Knowledge Base)</label>
                                                         <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded uppercase tracking-wider font-bold">AWS S3</span>
                                                     </div>
 

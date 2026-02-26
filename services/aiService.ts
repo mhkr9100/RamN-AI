@@ -6,13 +6,65 @@ import { AGENTS, AI_RESUMES, VAULT } from "../constants";
 /**
  * ROBUST API CALL WRAPPER
  */
-async function executeWithRetry<T>(operation: (ai: GoogleGenAI) => Promise<T>, apiKey?: string, maxRetries = 3): Promise<T> {
+async function hybridGenerateContent(params: any, apiKey?: string, maxRetries = 3): Promise<GenerateContentResponse | any> {
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
         try {
             const finalKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY || (typeof VAULT !== 'undefined' ? VAULT.GOOGLE : undefined);
-            const ai = new GoogleGenAI({ apiKey: finalKey as string });
-            return await operation(ai);
+
+            if (finalKey && finalKey.startsWith('sk-or-')) {
+                const messages = [];
+                if (params.config?.systemInstruction) messages.push({ role: 'system', content: params.config.systemInstruction });
+
+                for (const c of (params.contents || [])) {
+                    if (c.role === 'user' && c.parts?.[0]?.functionResponse) {
+                        messages.push({ role: 'tool', tool_call_id: c.parts[0].functionResponse.name, content: JSON.stringify(c.parts[0].functionResponse.response) });
+                    } else if (c.role === 'model' && c.parts?.[0]?.functionCall) {
+                        messages.push({
+                            role: 'assistant',
+                            tool_calls: [{ id: c.parts[0].functionCall.name, type: 'function', function: { name: c.parts[0].functionCall.name, arguments: JSON.stringify(c.parts[0].functionCall.args) } }]
+                        });
+                    } else {
+                        messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts[0]?.text || "" });
+                    }
+                }
+
+                let tools;
+                if (params.config?.tools && params.config.tools[0]?.functionDeclarations) {
+                    tools = params.config.tools[0].functionDeclarations.map((t: any) => ({
+                        type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters }
+                    }));
+                }
+
+                const payload: any = {
+                    model: params.model.includes('/') ? params.model : `google/${params.model}`,
+                    messages
+                };
+                if (tools && tools.length > 0) payload.tools = tools;
+
+                const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${finalKey}`, 'HTTP-Referer': 'https://ramnai.com', 'X-Title': 'RamN AI' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error(`OpenRouter Error: ${res.status} ${await res.text()}`);
+
+                const data = await res.json();
+                const choice = data.choices[0];
+
+                if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
+                    const tc = choice.message.tool_calls[0];
+                    return {
+                        functionCalls: [{ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }],
+                        text: choice.message.content
+                    };
+                }
+                return { text: choice?.message?.content || "" };
+            } else {
+                const ai = new GoogleGenAI({ apiKey: finalKey as string });
+                return await ai.models.generateContent(params);
+            }
         } catch (error: any) {
             lastError = error;
             const errorMessage = error.message || "";
@@ -29,7 +81,7 @@ async function executeWithRetry<T>(operation: (ai: GoogleGenAI) => Promise<T>, a
 
             if (isQuotaError && i < maxRetries - 1) {
                 const delay = Math.pow(2, i) * 2000 + Math.random() * 1000;
-                console.warn(`Gemini API Quota reached. Retrying attempt ${i + 1} in ${Math.round(delay)}ms...`);
+                console.warn(`API Quota reached. Retrying attempt ${i + 1} in ${Math.round(delay)}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
                 continue;
             }
@@ -188,17 +240,15 @@ export async function generateSingleAgentResponse(
             if (!availableTools.find(t => t.name === 'fabricateTeam')) availableTools.push(CAPABILITY_TOOLS.fabricateTeam);
         }
 
-        const response = await executeWithRetry((ai) => {
-            return ai.models.generateContent({
-                model: agent.model,
-                contents: contents as any,
-                config: {
-                    systemInstruction: systemPrompt,
-                    tools: availableTools.length > 0 ? [{ functionDeclarations: availableTools }] : undefined,
-                    thinkingConfig: agent.model.includes('pro') ? { thinkingBudget: 32768 } : undefined
-                }
-            });
-        }, apiKey) as GenerateContentResponse;
+        const response = await hybridGenerateContent({
+            model: agent.model,
+            contents: contents as any,
+            config: {
+                systemInstruction: systemPrompt,
+                tools: availableTools.length > 0 ? [{ functionDeclarations: availableTools }] : undefined,
+                thinkingConfig: agent.model.includes('pro') ? { thinkingBudget: 32768 } : undefined
+            }
+        }, apiKey);
 
         if (response.functionCalls && response.functionCalls.length > 0) {
             const call = response.functionCalls[0];
@@ -206,17 +256,15 @@ export async function generateSingleAgentResponse(
 
             if (safety === 'READ_ONLY') {
                 const toolOutput = await executeToolBackend(call, apiKey);
-                const finalResponse = await executeWithRetry((ai) => {
-                    return ai.models.generateContent({
-                        model: agent.model,
-                        contents: [
-                            ...contents,
-                            { role: 'model', parts: [{ functionCall: call }] },
-                            { role: 'user', parts: [{ functionResponse: { name: call.name, response: { result: toolOutput } } }] }
-                        ] as any,
-                        config: { systemInstruction: systemPrompt }
-                    });
-                }, apiKey) as GenerateContentResponse;
+                const finalResponse = await hybridGenerateContent({
+                    model: agent.model,
+                    contents: [
+                        ...contents,
+                        { role: 'model', parts: [{ functionCall: call }] },
+                        { role: 'user', parts: [{ functionResponse: { name: call.name, response: { result: toolOutput } } }] }
+                    ] as any,
+                    config: { systemInstruction: systemPrompt }
+                }, apiKey);
 
                 return {
                     type: 'text',
@@ -261,13 +309,11 @@ export async function generateExpandedSolution(history: Message[], agent: Agent,
         }));
         contents.push({ role: 'user', parts: [{ text: "Expand previous solution with maximum detail." }] });
 
-        const response = await executeWithRetry((ai) => {
-            return ai.models.generateContent({
-                model: agent.model,
-                contents: contents as any,
-                config: { systemInstruction: systemPrompt }
-            });
-        }, apiKey) as GenerateContentResponse;
+        const response = await hybridGenerateContent({
+            model: agent.model,
+            contents: contents as any,
+            config: { systemInstruction: systemPrompt }
+        }, apiKey);
 
         return response.text || null;
     } catch (e) {
@@ -277,13 +323,11 @@ export async function generateExpandedSolution(history: Message[], agent: Agent,
 
 async function executeToolBackend(toolCall: any, apiKey?: string): Promise<any> {
     if (toolCall.name === 'executeSearch') {
-        const res = await executeWithRetry((ai) => {
-            return ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
-                config: { tools: [{ googleSearch: {} }] }
-            });
-        }, apiKey) as GenerateContentResponse;
+        const res = await hybridGenerateContent({
+            model: 'gemini-3-flash-preview',
+            contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
+            config: { tools: [{ googleSearch: {} }] }
+        }, apiKey);
         return res.text;
     }
     return "Operation complete.";
@@ -292,12 +336,10 @@ async function executeToolBackend(toolCall: any, apiKey?: string): Promise<any> 
 export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall, apiKey?: string): Promise<MessageContent | null> {
     try {
         if (toolCall.name === 'generateVisualAsset') {
-            const response = await executeWithRetry((ai) => {
-                return ai.models.generateContent({
-                    model: 'gemini-3-pro-image-preview',
-                    contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
-                });
-            }, apiKey) as GenerateContentResponse;
+            const response = await hybridGenerateContent({
+                model: 'gemini-3-pro-image-preview',
+                contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
+            }, apiKey);
             const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
             return {
                 type: 'image',
@@ -327,29 +369,27 @@ export async function dispatchGroupTask(userPrompt: string, groupAgents: Agent[]
     const system = `Expertise Pool:\n${groupAgents.map(a => `- ${a.id}: ${a.role}`).join('\n')}\nReturn JSON activations array with agentId, tasks, responseMode, and weight.`;
 
     try {
-        const response = await executeWithRetry((ai) => {
-            return ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-                config: {
-                    systemInstruction: system,
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.ARRAY,
-                        items: {
-                            type: Type.OBJECT,
-                            properties: {
-                                agentId: { type: Type.STRING },
-                                tasks: { type: Type.ARRAY, items: { type: Type.STRING } },
-                                responseMode: { type: Type.STRING, enum: ['CHAT', 'SOLUTION', 'TASK', 'VOID'] },
-                                weight: { type: Type.NUMBER }
-                            },
-                            required: ['agentId', 'tasks', 'responseMode', 'weight']
-                        }
+        const response = await hybridGenerateContent({
+            model: 'gemini-3-flash-preview',
+            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            config: {
+                systemInstruction: system,
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            agentId: { type: Type.STRING },
+                            tasks: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            responseMode: { type: Type.STRING, enum: ['CHAT', 'SOLUTION', 'TASK', 'VOID'] },
+                            weight: { type: Type.NUMBER }
+                        },
+                        required: ['agentId', 'tasks', 'responseMode', 'weight']
                     }
                 }
-            });
-        }, apiKey) as GenerateContentResponse;
+            }
+        }, apiKey);
         return JSON.parse(response.text || '[]');
     } catch (e) { return []; }
 }

@@ -11,7 +11,7 @@ interface ChatViewProps {
   isLoading: boolean;
   typingAgent?: AgentType | null;
   typingAgents?: { agent: AgentType; tasks: any[] }[];
-  onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean) => void;
+  onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean, createEnabled?: boolean) => void;
   onOpenTaskModal?: () => void;
   onSaveInterval?: () => void;
   onContinueIntervals?: () => void;

@@ -31,12 +31,19 @@ export const useScatter = () => {
     const [agentModes, setAgentModes] = useState<{ [key: string]: 'CHAT' | 'SOLUTION' | 'TASK' | 'VOID' }>({});
 
     const getApiKeyForAgent = useCallback((agent: Agent) => {
-        if (agent.id === 'prism-core') return undefined; // Prism uses the platform's backend key
+        if (!currentUser?.apiKeys || currentUser.apiKeys.length === 0) {
+            return agent.id === 'prism-core' ? undefined : null;
+        }
+
+        const orKey = currentUser.apiKeys.find(k => k.service.toLowerCase().includes('openrouter'))?.key;
+        const hfKey = currentUser.apiKeys.find(k => k.service.toLowerCase().includes('huggingface'))?.key;
+
+        if (agent.id === 'prism-core') {
+            return orKey || hfKey || undefined;
+        }
 
         if (agent.apiKey) return agent.apiKey;
-        if (!currentUser?.apiKeys || currentUser.apiKeys.length === 0) return null;
 
-        // Try to find a key that matches the provider or service
         const providerKey = currentUser.apiKeys.find(k =>
             k.service.toLowerCase().includes(agent.provider.toLowerCase()) ||
             agent.provider.toLowerCase().includes(k.service.toLowerCase()) ||
@@ -44,10 +51,9 @@ export const useScatter = () => {
         );
         if (providerKey) return providerKey.key;
 
-        // Fallback to the first key if it's the only one
         if (currentUser.apiKeys.length === 1) return currentUser.apiKeys[0].key;
 
-        return null;
+        return orKey || hfKey || null;
     }, [currentUser]);
 
     // Persistence Effect
@@ -361,7 +367,7 @@ export const useScatter = () => {
         }
     };
 
-    const handleSendMessage = useCallback(async (text: string, responseSteps: number = 1, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean) => {
+    const handleSendMessage = useCallback(async (text: string, responseSteps: number = 1, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean, createEnabled?: boolean) => {
         const chatId = activeChatId;
         if (!currentUser) return;
 
@@ -380,6 +386,18 @@ export const useScatter = () => {
 
         addMessage(chatId, newMessage);
         let currentSnapshot = [...(chatHistory[chatId] || []), newMessage];
+
+        if (createEnabled && chatId === 'prism-core') {
+            const lastMsg = currentSnapshot[currentSnapshot.length - 1];
+            currentSnapshot[currentSnapshot.length - 1] = {
+                ...lastMsg,
+                content: {
+                    ...lastMsg.content,
+                    type: 'text',
+                    text: `${(lastMsg.content as any).text}\n\n[SYSTEM DIRECTIVE: The user has toggled 'Create Agents'. You MUST analyze the request and immediately use your 'fabricateAgent' tool to deploy the requested specialist. Do NOT just output conversational text.]`
+                }
+            };
+        }
 
         const team = teams.find(g => g.id === chatId);
         const agent = agents.find(e => e.id === chatId);

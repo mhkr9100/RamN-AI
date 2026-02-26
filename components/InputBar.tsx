@@ -6,7 +6,7 @@ import { Agent } from '../types';
 import { BetaLockedWrapper } from './BetaLockedWrapper';
 
 interface InputBarProps {
-  onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean) => void;
+  onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean, createEnabled?: boolean) => void;
   onOpenTaskModal?: () => void;
   onSaveInterval?: () => void;
   onOpenLiveSpace?: () => void;
@@ -35,6 +35,7 @@ export const InputBar: React.FC<InputBarProps> = ({
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [isRouteMode, setIsRouteMode] = useState(false);
+  const [isCreateMode, setIsCreateMode] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,7 +49,7 @@ export const InputBar: React.FC<InputBarProps> = ({
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (prompt.trim() || fileData) {
-      onSubmit(prompt, 1, fileData, false, isRouteMode);
+      onSubmit(prompt, 1, fileData, false, isRouteMode, isCreateMode);
       setPrompt('');
       setFileData(null);
       setFilePreview(null);
@@ -122,13 +123,23 @@ export const InputBar: React.FC<InputBarProps> = ({
           )}
 
           {isPrism && (
-            <button
-              onClick={() => setIsRouteMode(!isRouteMode)}
-              className={`px-4 py-1.5 border rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isRouteMode ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.3)]' : 'bg-[#0a0a0a] text-white/40 border-white/10 hover:border-indigo-500/30 hover:text-white'
-                }`}
-            >
-              {isRouteMode ? '🟢 Route Mode: ON' : '⚫ Route Mode: OFF'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setIsRouteMode(!isRouteMode); setIsCreateMode(false); }}
+                className={`px-4 py-1.5 border rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isRouteMode ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50 shadow-[0_0_15px_rgba(99,102,241,0.3)]' : 'bg-[#0a0a0a] text-white/40 border-white/10 hover:border-indigo-500/30 hover:text-white'
+                  }`}
+              >
+                {isRouteMode ? '🟢 Route Mode: ON' : '⚫ Route Mode: OFF'}
+              </button>
+
+              <button
+                onClick={() => { setIsCreateMode(!isCreateMode); setIsRouteMode(false); }}
+                className={`px-4 py-1.5 border rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isCreateMode ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-[#0a0a0a] text-white/40 border-white/10 hover:border-emerald-500/30 hover:text-white'
+                  }`}
+              >
+                {isCreateMode ? '🟢 Create Agents: ON' : '⚫ Create Agents: OFF'}
+              </button>
+            </div>
           )}
 
           {!isPrism && (
