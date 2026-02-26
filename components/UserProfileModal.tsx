@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserProfile, ApiKeyEntry, UserMapNode } from '../types';
+import { UserProfile, ApiKeyEntry } from '../types';
 import { XMarkIcon } from './icons/XMarkIcon';
-import { UserMapEditor } from './UserMap/UserMapEditor';
 
 interface UserProfileModalProps {
     user: UserProfile;
@@ -17,8 +16,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
     const [email, setEmail] = useState(user.email);
     const [avatar, setAvatar] = useState(user.avatar || '');
     const [localApiKeys, setLocalApiKeys] = useState<ApiKeyEntry[]>([{ service: '', key: '' }]);
-    const [localUserMap, setLocalUserMap] = useState<UserMapNode>(user.userMap || { id: 'root', label: 'My Ecosystem', children: [] });
-    const [activeTab, setActiveTab] = useState<'identity' | 'keys' | 'map'>('identity');
+    const [activeTab, setActiveTab] = useState<'identity' | 'keys'>('identity');
 
     useEffect(() => {
         if (user.apiKeys && user.apiKeys.length > 0) {
@@ -44,7 +42,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const filteredKeys = localApiKeys.filter(k => k.key.trim() !== '' && k.service.trim() !== '');
-        onSave({ ...user, name, email, avatar, apiKeys: filteredKeys, userMap: localUserMap });
+        onSave({ ...user, name, email, avatar, apiKeys: filteredKeys });
         onClose();
     };
 
@@ -70,12 +68,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                         className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'keys' ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
                     >
                         API Keys
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('map')}
-                        className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${activeTab === 'map' ? 'text-white border-white' : 'text-white/20 border-transparent hover:text-white/40'}`}
-                    >
-                        UserMap
                     </button>
                 </div>
 
@@ -124,9 +116,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
 
                                 <div className="space-y-4">
                                     {[
-                                        { id: 'Google (Gemini)', placeholder: 'AIza...' },
-                                        { id: 'Anthropic (Claude)', placeholder: 'sk-ant-...' },
-                                        { id: 'OpenAI (ChatGPT)', placeholder: 'sk-proj-...' }
+                                        { id: 'OpenRouter', placeholder: 'sk-or-v1-...' },
+                                        { id: 'HuggingFace', placeholder: 'hf_...' }
                                     ].map((provider) => {
                                         const existingKey = localApiKeys.find(k => k.service === provider.id)?.key || '';
                                         return (
@@ -155,23 +146,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                             </div>
                         )}
 
-                        {activeTab === 'map' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
-                                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Ecosystem UserMap</h4>
-                                    <p className="text-[9px] text-white/40 leading-relaxed">
-                                        Define the hierarchical structure of your AI workforce. Map out teams, projects, and agent relationships.
-                                    </p>
-                                </div>
 
-                                <div className="bg-black/40 rounded-2xl p-6 border border-white/5 min-h-[300px]">
-                                    <UserMapEditor
-                                        node={localUserMap}
-                                        onUpdate={setLocalUserMap}
-                                    />
-                                </div>
-                            </div>
-                        )}
 
                         <div className="pt-4 flex flex-col gap-3 flex-shrink-0">
                             <button

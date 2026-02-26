@@ -64,6 +64,18 @@ export const useScatter = () => {
                 const historyKey = `history_${userId}`;
                 const loadedChats = await dbService.get<{ [key: string]: Message[] }>(STORES_ENUM.CHATS, historyKey) || {};
 
+                if (!loadedChats['prism-core']) {
+                    loadedChats['prism-core'] = [{
+                        id: `msg-prism-init`,
+                        agent: AGENTS.PRISM,
+                        content: {
+                            type: 'text',
+                            text: "Hello. I am Prism, your Meta Agent and Workspace Architect. My mission is to translate your goals into specialized AI architectures. Whether you need a single expert agent or a coordinated team of specialists to handle a complex project, I am here to design and deploy them for you.\n\nHow can I help you build your workspace today? Tell me about a project, a workflow, or a specific problem you're looking to solve."
+                        },
+                        type: 'agent'
+                    }];
+                }
+
                 setAgents([...systemAgents, ...userAgents]);
                 setTeams([...SYSTEM_TEAMS, ...userTeams]);
                 setChatHistory(loadedChats);
@@ -290,9 +302,8 @@ export const useScatter = () => {
 
         let availableProviders = "";
         const keys = currentUser?.apiKeys || [];
-        if (keys.some(k => k.service === 'Google (Gemini)')) availableProviders += "Google Gemini (gemini-1.5-pro, gemini-1.5-flash), ";
-        if (keys.some(k => k.service === 'Anthropic (Claude)')) availableProviders += "Anthropic Claude (claude-3-5-sonnet, claude-3-opus), ";
-        if (keys.some(k => k.service === 'OpenAI (ChatGPT)')) availableProviders += "OpenAI (gpt-4o, gpt-4o-mini).";
+        if (keys.some(k => k.service === 'OpenRouter')) availableProviders += "OpenRouter (any supported model), ";
+        if (keys.some(k => k.service === 'HuggingFace')) availableProviders += "HuggingFace (any supported model).";
 
         const providerContext = availableProviders
             ? `The user ONLY has access to the following AI Providers: ${availableProviders}. You MUST select a valid modelId matching one of these explicitly available providers.`
@@ -429,9 +440,8 @@ export const useScatter = () => {
                     const apiKey = getApiKeyForAgent(AGENTS.PRISM);
                     let availableProviders = "";
                     const keys = currentUser?.apiKeys || [];
-                    if (keys.some(k => k.service === 'Google (Gemini)')) availableProviders += "Google Gemini (gemini-1.5-pro, gemini-1.5-flash), ";
-                    if (keys.some(k => k.service === 'Anthropic (Claude)')) availableProviders += "Anthropic Claude (claude-3-5-sonnet, claude-3-opus), ";
-                    if (keys.some(k => k.service === 'OpenAI (ChatGPT)')) availableProviders += "OpenAI (gpt-4o, gpt-4o-mini).";
+                    if (keys.some(k => k.service === 'OpenRouter')) availableProviders += "OpenRouter (any supported model), ";
+                    if (keys.some(k => k.service === 'HuggingFace')) availableProviders += "HuggingFace (any supported model).";
                     const response = await generatePrismResponse(currentSnapshot, AGENTS.PRISM, setPrismStatus, apiKey || undefined, availableProviders);
                     if (response) {
                         addMessage(chatId, {
@@ -464,9 +474,8 @@ export const useScatter = () => {
                 if (target.id === 'prism-core') {
                     let availableProviders = "";
                     const keys = currentUser?.apiKeys || [];
-                    if (keys.some(k => k.service === 'Google (Gemini)')) availableProviders += "Google Gemini (gemini-1.5-pro, gemini-1.5-flash), ";
-                    if (keys.some(k => k.service === 'Anthropic (Claude)')) availableProviders += "Anthropic Claude (claude-3-5-sonnet, claude-3-opus), ";
-                    if (keys.some(k => k.service === 'OpenAI (ChatGPT)')) availableProviders += "OpenAI (gpt-4o, gpt-4o-mini).";
+                    if (keys.some(k => k.service === 'OpenRouter')) availableProviders += "OpenRouter (any supported model), ";
+                    if (keys.some(k => k.service === 'HuggingFace')) availableProviders += "HuggingFace (any supported model).";
                     response = await generatePrismResponse(currentSnapshot, target, setPrismStatus, apiKey || undefined, availableProviders);
                 } else {
                     response = await generateSingleAgentResponse(currentSnapshot, target, [], [], 'CHAT', apiKey || undefined);

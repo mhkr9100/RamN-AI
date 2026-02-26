@@ -15,12 +15,7 @@ export type AgentCapability =
   | 'liveAudio'
   | 'fileManipulation';
 
-export interface UserMapNode {
-  id: string;
-  label: string;
-  children?: UserMapNode[];
-  isEditable?: boolean;
-}
+
 
 export interface ApiKeyEntry {
   service: string;
@@ -33,7 +28,6 @@ export interface UserProfile {
   email: string;
   avatar?: string;
   bio?: string;
-  userMap?: UserMapNode;
   apiKeys?: ApiKeyEntry[];
 }
 
