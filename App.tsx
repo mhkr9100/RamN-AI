@@ -8,8 +8,7 @@ import { SpectrumView } from './components/SpectrumView';
 import { ProfileSidebar } from './components/ProfileSidebar';
 import { IntervalSaveModal } from './components/ChatIntervals/IntervalSaveModal';
 import { UnsavedPrompt } from './components/ChatIntervals/UnsavedPrompt';
-import { WorkView } from './components/WorkView';
-import { MediaView } from './components/MediaView';
+
 import { LoginScreen } from './components/LoginScreen';
 import { HomeView } from './components/HomeView';
 import { useScatter } from './hooks/useScatter';
@@ -28,7 +27,7 @@ const App: React.FC = () => {
   const { intervals, deleteInterval, saveInterval } = useChatIntervals();
   const { globalTasks, updateTaskStatus, deleteTask, updateTask, handleAddGlobalTask } = useTasks(processSilentDirective);
 
-  const [activeView, setActiveView] = useState<'home' | 'prism' | 'spectrum' | 'chats' | 'work' | 'media'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'prism' | 'spectrum' | 'chats'>('home');
   const [createModalType, setCreateModalType] = useState<'agent' | 'project' | null>(null);
   const [createModalInitialValues, setCreateModalInitialValues] = useState<any>(undefined);
 
@@ -116,10 +115,7 @@ const App: React.FC = () => {
         return <HomeView onStartChat={() => { setActiveView('prism'); setActiveChatId('prism-core'); }} onOpenProfile={() => setIsUserProfileOpen(true)} />;
       case 'spectrum':
         return <SpectrumView onHire={handleHireFromSpectrum} onFabricateAgent={() => setCreateModalType('agent')} onInitializeGroup={() => setCreateModalType('project')} agents={agents} teams={teams} userProfile={userProfile} />;
-      case 'media':
-        return <MediaView chatHistory={chatHistory} />;
-      case 'work': // Theoretically unreachable but kept for safety
-        return <div className="p-20 text-center opacity-20 uppercase tracking-[0.5em] text-xs">Work Hub Disabled in Beta</div>;
+
       default:
         // Automatically deselect Prism if we are supposed to be in 'chats' view and Prism is still active
         const showBlankState = activeView === 'chats' && isPrism;
@@ -176,7 +172,6 @@ const App: React.FC = () => {
                 userProfile={userProfile}
                 onContinueInterval={handleContinueInterval} onDeleteInterval={deleteInterval}
                 onClose={() => setIsProfileSidebarOpen(false)} onSaveAgent={(u) => setAgents(prev => prev.map(e => e.id === u.id ? u : e))} onSaveTeam={(u) => setTeams(prev => prev.map(g => g.id === u.id ? u : g))}
-                onDeleteAgent={deleteAgent} onDeleteTeam={deleteTeam}
               />
             )}
           </div>
@@ -189,7 +184,6 @@ const App: React.FC = () => {
       <SideBar
         activeView={activeView}
         onViewChange={(view) => {
-          if (view === 'work') return; // Enforce disable in logic
           setActiveView(view);
           if (view === 'prism') setActiveChatId('prism-core');
         }}

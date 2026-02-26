@@ -10,8 +10,8 @@ import { BetaLockedWrapper } from './BetaLockedWrapper';
 import { authService } from '../services/auth';
 
 interface SideBarProps {
-  activeView: 'home' | 'prism' | 'spectrum' | 'chats' | 'work' | 'media';
-  onViewChange: (view: 'home' | 'prism' | 'spectrum' | 'chats' | 'work' | 'media') => void;
+  activeView: 'home' | 'prism' | 'spectrum' | 'chats';
+  onViewChange: (view: 'home' | 'prism' | 'spectrum' | 'chats') => void;
   onOpenProfile: () => void;
   agents: Agent[];
   teams: Team[];
@@ -177,35 +177,7 @@ export function SideBar({
         </nav>
 
         <div className="flex flex-col items-center space-y-4 pb-4">
-          <BetaLockedWrapper position="right">
-            <button
-              className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all text-white/20 cursor-not-allowed`}
-              title="Work"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-19.5.338V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 0 0-2.15-1.588H6.911a2.25 2.25 0 0 0-2.15 1.588L2.35 13.177a2.25 2.25 0 0 0-.1.661Z" /></svg>
-              {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest">Work</span>}
-            </button>
-          </BetaLockedWrapper>
 
-          <div className="w-full px-2 mb-2">
-            <button
-              onClick={() => setIsFeedbackModalOpen(true)}
-              title="Feedback"
-              className="p-2 text-white/40 hover:text-white transition-all w-full flex flex-col items-center justify-center gap-1"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" /></svg>
-              {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Feedback</span>}
-            </button>
-          </div>
-
-          <button
-            onClick={() => onViewChange('media')}
-            className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all ${activeView === 'media' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
-            title="Media"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-            {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest">Media</span>}
-          </button>
 
           <button
             onClick={onOpenProfile}

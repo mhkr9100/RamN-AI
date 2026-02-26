@@ -424,46 +424,24 @@ export const useScatter = () => {
                         }
                     }));
                 } else {
-                    // Fallback: Broadcast to all agents in the squad
-                    setPrismStatus(`Broadcasting to Squad (${team.agents.length} units)...`);
-
-                    // Update weights visually
-                    const weights: Record<string, number> = {};
-                    team.agents.forEach(a => weights[a.id] = 1 / team.agents.length);
-                    setOrchestrationWeights(weights);
-
-                    setTypingAgents(team.agents.map(a => ({
-                        agent: a,
-                        tasks: [],
-                        mode: 'CHAT'
-                    })));
-
-                    // Call all agents in parallel
-                    await Promise.all(team.agents.map(async (targetAgent) => {
-                        const apiKey = getApiKeyForAgent(targetAgent);
-
-                        if (targetAgent.id !== 'prism-core' && apiKey === null) {
-                            addMessage(chatId, {
-                                id: `msg-${Date.now()}-${targetAgent.id}`,
-                                userId: currentUser.id,
-                                agent: targetAgent,
-                                content: { type: 'text', text: "⚠️ **API Key Required**: Please add your API key for this provider in your User Profile (bottom left) to use this agent." },
-                                type: 'agent'
-                            });
-                            return;
-                        }
-
-                        const response = await generateSingleAgentResponse(currentSnapshot, targetAgent, team.agents, [], 'CHAT', apiKey || undefined);
-                        if (response) {
-                            addMessage(chatId, {
-                                id: `msg-${Date.now()}-${targetAgent.id}`,
-                                userId: currentUser.id,
-                                agent: targetAgent,
-                                content: response,
-                                type: 'agent'
-                            });
-                        }
-                    }));
+                    // Fallback to Prism if no specific specialist is mentioned
+                    setPrismStatus("No mention detected. Consulting Core...");
+                    const apiKey = getApiKeyForAgent(AGENTS.PRISM);
+                    let availableProviders = "";
+                    const keys = currentUser?.apiKeys || [];
+                    if (keys.some(k => k.service === 'Google (Gemini)')) availableProviders += "Google Gemini (gemini-1.5-pro, gemini-1.5-flash), ";
+                    if (keys.some(k => k.service === 'Anthropic (Claude)')) availableProviders += "Anthropic Claude (claude-3-5-sonnet, claude-3-opus), ";
+                    if (keys.some(k => k.service === 'OpenAI (ChatGPT)')) availableProviders += "OpenAI (gpt-4o, gpt-4o-mini).";
+                    const response = await generatePrismResponse(currentSnapshot, AGENTS.PRISM, setPrismStatus, apiKey || undefined, availableProviders);
+                    if (response) {
+                        addMessage(chatId, {
+                            id: `msg-${Date.now()}`,
+                            userId: currentUser.id,
+                            agent: AGENTS.PRISM,
+                            content: response,
+                            type: 'agent'
+                        });
+                    }
                 }
             } else if (agent || chatId === 'prism-core') {
                 const target = agent || AGENTS.PRISM;

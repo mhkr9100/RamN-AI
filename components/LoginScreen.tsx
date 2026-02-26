@@ -8,37 +8,22 @@ interface LoginScreenProps {
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
-    const [code, setCode] = useState('');
-    const [isSignUp, setIsSignUp] = useState(false);
-    const [isVerifying, setIsVerifying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        if (!email || !email.includes('@')) {
+            setError("Please enter a valid email address.");
+            return;
+        }
         setIsLoading(true);
 
         try {
-            if (isVerifying) {
-                await authService.confirmSignUp(email, code);
-                // User confirmed, now sign in automatically
-                await authService.login(email, password);
-                onLogin(email, name || 'Architect');
-            } else if (isSignUp) {
-                const { nextStep } = await authService.signUp(name, password, email);
-                if (nextStep?.signUpStep === 'CONFIRM_SIGN_UP') {
-                    setIsVerifying(true);
-                } else {
-                    onLogin(email, name);
-                }
-            } else {
-                await authService.login(email, password);
-                const user = await authService.getCurrentUser();
-                onLogin(email, user?.name || 'Architect');
-            }
+            await authService.login(email);
+            const user = await authService.getCurrentUser();
+            onLogin(email, user?.name || 'Architect');
         } catch (err: any) {
             setError(err.message || 'Authentication failed');
         } finally {
@@ -54,7 +39,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                         <PrismIcon size={64} />
                     </div>
                     <h1 className="text-2xl font-black tracking-[0.3em] uppercase text-white">RamN AI</h1>
-                    <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Authenticate to access the orchestrator</p>
+                    <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Enter Email to Access the Orchestrator</p>
                 </div>
 
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -65,71 +50,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     )}
 
                     <div className="space-y-4">
-                        {!isVerifying && isSignUp && (
-                            <div>
-                                <label htmlFor="name" className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">Display Name</label>
-                                <input
-                                    id="name"
-                                    name="name"
-                                    type="text"
-                                    required={isSignUp}
-                                    className="w-full bg-black border border-white/10 rounded-xl p-4 text-sm text-white focus:border-white outline-none transition-colors"
-                                    placeholder="Enter your name"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                />
-                            </div>
-                        )}
-
-                        {!isVerifying && (
-                            <>
-                                <div>
-                                    <label htmlFor="email-address" className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">Email Address</label>
-                                    <input
-                                        id="email-address"
-                                        name="email"
-                                        type="email"
-                                        autoComplete="email"
-                                        required
-                                        className="w-full bg-black border border-white/10 rounded-xl p-4 text-sm text-white focus:border-white outline-none transition-colors"
-                                        placeholder="Enter your email"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="password" className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">Password</label>
-                                    <input
-                                        id="password"
-                                        name="password"
-                                        type="password"
-                                        autoComplete="current-password"
-                                        required
-                                        className="w-full bg-black border border-white/10 rounded-xl p-4 text-sm text-white focus:border-white outline-none transition-colors"
-                                        placeholder="Enter your password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                    />
-                                </div>
-                            </>
-                        )}
-
-                        {isVerifying && (
-                            <div>
-                                <label htmlFor="code" className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">Verification Code</label>
-                                <p className="text-[10px] text-white/40 mb-3">Please check your email for the code to confirm your account.</p>
-                                <input
-                                    id="code"
-                                    name="code"
-                                    type="text"
-                                    required
-                                    className="w-full bg-black border border-white/10 rounded-xl p-4 text-sm text-white focus:border-white outline-none transition-colors tracking-widest text-center"
-                                    placeholder="000000"
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value)}
-                                />
-                            </div>
-                        )}
+                        <div>
+                            <label htmlFor="email-address" className="block text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.2em]">Email Address</label>
+                            <input
+                                id="email-address"
+                                name="email"
+                                type="email"
+                                autoComplete="email"
+                                required
+                                className="w-full bg-black border border-white/10 rounded-xl p-4 text-sm text-white focus:border-white outline-none transition-colors"
+                                placeholder="Enter your email to login"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
                     </div>
 
                     <div className="pt-4 space-y-4">
@@ -138,23 +72,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             disabled={isLoading}
                             className="w-full py-4 bg-white text-black text-[11px] font-black uppercase tracking-[0.3em] rounded-xl transition-all shadow-xl active:scale-[0.98] hover:bg-slate-200 disabled:opacity-50"
                         >
-                            {isLoading ? 'Processing...' : (isVerifying ? 'Verify & Enter' : (isSignUp ? 'Create Account' : 'Initialize Session'))}
+                            {isLoading ? 'Processing...' : 'Initialize Session'}
                         </button>
-
-                        {!isVerifying && (
-                            <button
-                                type="button"
-                                onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-                                className="w-full text-[10px] font-bold text-white/40 hover:text-white uppercase tracking-[0.2em] transition-colors"
-                            >
-                                {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
-                            </button>
-                        )}
                     </div>
                 </form>
 
                 <p className="text-center text-[9px] font-mono uppercase tracking-widest text-white/20 pt-8 border-t border-white/5">
-                    Production Environment • AWS Secure Cloud Authentication
+                    Local Environment • Email Login
                 </p>
             </div>
         </div>
