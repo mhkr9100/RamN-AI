@@ -2,7 +2,6 @@ import { PutCommand, GetCommand, ScanCommand, DeleteCommand } from '@aws-sdk/lib
 import { dynamoDb } from './awsConfig';
 
 export const STORES_ENUM = {
-    INTERVALS: 'intervals',
     AGENTS: 'agents',
     GROUPS: 'groups',
     CHATS: 'chats',
@@ -19,7 +18,6 @@ const getTableName = (store: StoreName) => {
         case STORES_ENUM.AGENTS: return `${prefix}Agents`;
         case STORES_ENUM.GROUPS: return `${prefix}Groups`;
         case STORES_ENUM.CHATS: return `${prefix}Chats`;
-        case STORES_ENUM.INTERVALS: return `${prefix}Intervals`;
         case STORES_ENUM.TASKS: return `${prefix}Tasks`;
         case STORES_ENUM.FEEDBACK: return `${prefix}Feedback`;
         default: return `${prefix}Store`;

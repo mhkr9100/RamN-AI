@@ -8,7 +8,6 @@ import { BetaLockedWrapper } from './BetaLockedWrapper';
 interface InputBarProps {
   onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean, createEnabled?: boolean) => void;
   onOpenTaskModal?: () => void;
-  onSaveInterval?: () => void;
   onOpenLiveSpace?: () => void;
   canOpenLiveSpace?: boolean;
   isLoading: boolean;
@@ -20,7 +19,6 @@ interface InputBarProps {
 export const InputBar: React.FC<InputBarProps> = ({
   onSubmit,
   onOpenTaskModal,
-  onSaveInterval,
   onOpenLiveSpace,
   canOpenLiveSpace,
   isLoading,
@@ -143,23 +141,14 @@ export const InputBar: React.FC<InputBarProps> = ({
           )}
 
           {!isPrism && (
-            <>
-              <BetaLockedWrapper>
-                <button
-                  className="px-4 py-1.5 bg-indigo-900/40 border border-indigo-500/20 text-indigo-400/40 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-not-allowed"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20" />
-                  LiveTask
-                </button>
-              </BetaLockedWrapper>
-
+            <BetaLockedWrapper>
               <button
-                onClick={onSaveInterval}
-                className="px-4 py-1.5 bg-[#0a0a0a] border border-white/10 text-white/40 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-lg hover:border-indigo-500/30"
+                className="px-4 py-1.5 bg-indigo-900/40 border border-indigo-500/20 text-indigo-400/40 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-not-allowed"
               >
-                Save Interval
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20" />
+                LiveTask
               </button>
-            </>
+            </BetaLockedWrapper>
           )}
         </div>
 
@@ -226,6 +215,6 @@ export const InputBar: React.FC<InputBarProps> = ({
           </form>
         </div>
       </div>
-    </div>
+    </div >
   );
 };

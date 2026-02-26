@@ -13,8 +13,6 @@ interface ChatViewProps {
   typingAgents?: { agent: AgentType; tasks: any[] }[];
   onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean, createEnabled?: boolean) => void;
   onOpenTaskModal?: () => void;
-  onSaveInterval?: () => void;
-  onContinueIntervals?: () => void;
   onAddAgent: (agentData: Omit<AgentType, 'id' | 'type'>) => void;
   onCreateTeam: (teamData: { name: string, agentIds: string[] }) => void;
   onExecuteCommand?: (messageId: string, toolCall: ToolCall) => void;
@@ -34,7 +32,7 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
-  messages, isLoading, typingAgent, typingAgents = [], onSubmit, onOpenTaskModal, onSaveInterval, onContinueIntervals, onAddAgent, onCreateTeam, onExecuteCommand, onExpandMessage, onSaveToTasks, onInjectSystemMessage, mentionCandidates, onConfigureNewAgent, onDeployCustomTeam, prismStatus, isGroup = false, orchestrationWeights = {}, agentModes = {}, activeChatId, activeAgent, activeTeam
+  messages, isLoading, typingAgent, typingAgents = [], onSubmit, onOpenTaskModal, onAddAgent, onCreateTeam, onExecuteCommand, onExpandMessage, onSaveToTasks, onInjectSystemMessage, mentionCandidates, onConfigureNewAgent, onDeployCustomTeam, prismStatus, isGroup = false, orchestrationWeights = {}, agentModes = {}, activeChatId, activeAgent, activeTeam
 }) => {
   const [isLiveSpaceOpen, setIsLiveSpaceOpen] = useState(false);
 
@@ -99,7 +97,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         <InputBar
           onSubmit={onSubmit}
           onOpenTaskModal={onOpenTaskModal}
-          onSaveInterval={onSaveInterval}
           onOpenLiveSpace={handleOpenLiveSpace}
           canOpenLiveSpace={canOpenLiveSpace && !isLiveSpaceOpen}
           isLoading={isLoading}

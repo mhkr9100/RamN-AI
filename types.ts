@@ -45,14 +45,6 @@ export interface GlobalTask {
   output?: string;
 }
 
-export interface ChatInterval {
-  id: string;
-  targetId: string;
-  name: string;
-  messages: Message[];
-  createdAt: number;
-}
-
 export interface Agent {
   id: string;
   userId?: string;

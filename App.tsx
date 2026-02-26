@@ -6,15 +6,11 @@ import { UserProfileModal } from './components/UserProfileModal';
 import { CreateEntityModal } from './components/CreateEntityModal';
 import { SpectrumView } from './components/SpectrumView';
 import { ProfileSidebar } from './components/ProfileSidebar';
-import { IntervalSaveModal } from './components/ChatIntervals/IntervalSaveModal';
-import { UnsavedPrompt } from './components/ChatIntervals/UnsavedPrompt';
-
 import { LoginScreen } from './components/LoginScreen';
 import { HomeView } from './components/HomeView';
 import { useScatter } from './hooks/useScatter';
-import { useChatIntervals } from './hooks/useChatIntervals';
 import { useTasks } from './hooks/useTasks';
-import { Agent, GlobalTask, ChatInterval, Message, UserProfile } from './types';
+import { Agent, GlobalTask, Message, UserProfile } from './types';
 import { AGENTS } from './constants';
 
 const App: React.FC = () => {
@@ -24,7 +20,6 @@ const App: React.FC = () => {
     handleSendMessage, handleExecuteCommand, handleExpandMessage, injectOutputToChat, clearChat, loadChatHistory, recruitAgent, createTeam, deleteAgent, deleteTeam, processSilentDirective
   } = useScatter();
 
-  const { intervals, deleteInterval, saveInterval } = useChatIntervals();
   const { globalTasks, updateTaskStatus, deleteTask, updateTask, handleAddGlobalTask } = useTasks(processSilentDirective);
 
   const [activeView, setActiveView] = useState<'home' | 'prism' | 'spectrum' | 'chats'>('home');
@@ -33,10 +28,6 @@ const App: React.FC = () => {
 
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
-
-  const [isIntervalSaveOpen, setIsIntervalSaveOpen] = useState(false);
-  const [isUnsavedPromptOpen, setIsUnsavedPromptOpen] = useState(false);
-  const [pendingIntervalToLoad, setPendingIntervalToLoad] = useState<ChatInterval | null>(null);
 
   if (isInitializing) {
     return (
@@ -55,35 +46,6 @@ const App: React.FC = () => {
   const activeTeam = teams.find(g => g.id === activeChatId);
   const activeAgent = agents.find(e => e.id === activeChatId);
   const isPrism = activeChatId === 'prism-core';
-
-  const handleSaveCurrentInterval = async (name: string) => {
-    const currentMsgs = chatHistory[activeChatId] || [];
-    if (currentMsgs.length > 0) {
-      await saveInterval(activeChatId, name, currentMsgs);
-      clearChat(activeChatId);
-    }
-    setIsIntervalSaveOpen(false);
-  };
-
-  const handleContinueInterval = (interval: ChatInterval) => {
-    const currentMsgs = chatHistory[activeChatId] || [];
-    const isDirty = activeChatId === 'prism-core' ? currentMsgs.length > 1 : currentMsgs.length > 0;
-    if (isDirty) {
-      setPendingIntervalToLoad(interval);
-      setIsUnsavedPromptOpen(true);
-    } else {
-      performLoadInterval(interval);
-    }
-  };
-
-  const performLoadInterval = (interval: ChatInterval) => {
-    setActiveChatId(interval.targetId);
-    loadChatHistory(interval.targetId, interval.messages);
-    setIsUnsavedPromptOpen(false);
-    setPendingIntervalToLoad(null);
-    setIsProfileSidebarOpen(false);
-    setActiveView('chats');
-  };
 
   const handleHireFromSpectrum = (p: any) => {
     if ('modelId' in p) {
@@ -152,7 +114,6 @@ const App: React.FC = () => {
                 <ChatView
                   messages={chatHistory[activeChatId] || []} isLoading={isProcessing} typingAgent={typingAgent} typingAgents={typingAgents as any}
                   onSubmit={handleSendMessage} onOpenTaskModal={() => { }}
-                  onSaveInterval={() => setIsIntervalSaveOpen(true)} onContinueIntervals={() => setIsProfileSidebarOpen(true)}
                   onAddAgent={recruitAgent} onCreateTeam={(data) => createTeam({ ...data, type: 'rouge' })}
                   onExecuteCommand={handleExecuteCommand}
                   onExpandMessage={handleExpandMessage}
@@ -167,10 +128,9 @@ const App: React.FC = () => {
             </div>
             {profileData && (
               <ProfileSidebar
-                isOpen={isProfileSidebarOpen} type={profileData.type} data={profileData.data as any} globalTasks={[]} intervals={intervals}
+                isOpen={isProfileSidebarOpen} type={profileData.type} data={profileData.data as any} globalTasks={[]}
                 onUpdateUserProfile={(p) => setUserProfile({ ...userProfile, ...p })}
                 userProfile={userProfile}
-                onContinueInterval={handleContinueInterval} onDeleteInterval={deleteInterval}
                 onClose={() => setIsProfileSidebarOpen(false)} onSaveAgent={(u) => setAgents(prev => prev.map(e => e.id === u.id ? u : e))} onSaveTeam={(u) => setTeams(prev => prev.map(g => g.id === u.id ? u : g))}
               />
             )}
@@ -207,18 +167,6 @@ const App: React.FC = () => {
 
       {isUserProfileOpen && (
         <UserProfileModal user={userProfile} isOpen={isUserProfileOpen} onClose={() => setIsUserProfileOpen(false)} onSave={setUserProfile} onLogout={logout} />
-      )}
-
-      {isIntervalSaveOpen && (
-        <IntervalSaveModal isOpen={isIntervalSaveOpen} onClose={() => setIsIntervalSaveOpen(false)} onSave={handleSaveCurrentInterval} />
-      )}
-
-      {isUnsavedPromptOpen && (
-        <UnsavedPrompt
-          isOpen={isUnsavedPromptOpen} onCancel={() => setIsUnsavedPromptOpen(false)}
-          onSave={() => { setIsUnsavedPromptOpen(false); setIsIntervalSaveOpen(true); }}
-          onIgnore={() => { if (pendingIntervalToLoad) { performLoadInterval(pendingIntervalToLoad); } }}
-        />
       )}
     </div>
   );
