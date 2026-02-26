@@ -7,9 +7,6 @@ import { BetaLockedWrapper } from './BetaLockedWrapper';
 
 interface InputBarProps {
   onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean, createEnabled?: boolean) => void;
-  onOpenTaskModal?: () => void;
-  onOpenLiveSpace?: () => void;
-  canOpenLiveSpace?: boolean;
   isLoading: boolean;
   mentionCandidates?: Agent[];
   isGroup?: boolean;
@@ -18,9 +15,6 @@ interface InputBarProps {
 
 export const InputBar: React.FC<InputBarProps> = ({
   onSubmit,
-  onOpenTaskModal,
-  onOpenLiveSpace,
-  canOpenLiveSpace,
   isLoading,
   mentionCandidates = [],
   isGroup = false,
@@ -110,16 +104,6 @@ export const InputBar: React.FC<InputBarProps> = ({
       <div className="mx-auto max-w-3xl relative">
 
         <div className="absolute -top-12 left-0 flex items-center gap-2 z-30">
-          {!isPrism && (
-            <BetaLockedWrapper>
-              <button
-                className="px-4 py-1.5 bg-[#0a0a0a] border border-white/10 text-white/20 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-lg cursor-not-allowed"
-              >
-                Task
-              </button>
-            </BetaLockedWrapper>
-          )}
-
           {isPrism && (
             <div className="flex items-center gap-2">
               <button
@@ -138,17 +122,6 @@ export const InputBar: React.FC<InputBarProps> = ({
                 {isCreateMode ? '🟢 Create Agents: ON' : '⚫ Create Agents: OFF'}
               </button>
             </div>
-          )}
-
-          {!isPrism && (
-            <BetaLockedWrapper>
-              <button
-                className="px-4 py-1.5 bg-indigo-900/40 border border-indigo-500/20 text-indigo-400/40 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-not-allowed"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20" />
-                LiveTask
-              </button>
-            </BetaLockedWrapper>
           )}
         </div>
 

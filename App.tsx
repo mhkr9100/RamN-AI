@@ -113,7 +113,7 @@ const App: React.FC = () => {
               <div className="flex-1 overflow-hidden relative">
                 <ChatView
                   messages={chatHistory[activeChatId] || []} isLoading={isProcessing} typingAgent={typingAgent} typingAgents={typingAgents as any}
-                  onSubmit={handleSendMessage} onOpenTaskModal={() => { }}
+                  onSubmit={handleSendMessage}
                   onAddAgent={recruitAgent} onCreateTeam={(data) => createTeam({ ...data, type: 'rouge' })}
                   onExecuteCommand={handleExecuteCommand}
                   onExpandMessage={handleExpandMessage}

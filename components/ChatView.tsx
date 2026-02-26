@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { ChatInterface } from './ChatInterface';
 import { InputBar } from './InputBar';
 import { ScatterBottleVisual } from './ScatterBottleVisual';
-import { LiveSpace } from './LiveSpace/LiveSpace';
 import { Message, Agent as AgentType, CustomGroupSuggestion, ToolCall, Team, GlobalTask } from '../types';
 
 interface ChatViewProps {
@@ -12,7 +11,6 @@ interface ChatViewProps {
   typingAgent?: AgentType | null;
   typingAgents?: { agent: AgentType; tasks: any[] }[];
   onSubmit: (prompt: string, steps: number, file?: { data: string, mimeType: string }, searchEnabled?: boolean, routeEnabled?: boolean, createEnabled?: boolean) => void;
-  onOpenTaskModal?: () => void;
   onAddAgent: (agentData: Omit<AgentType, 'id' | 'type'>) => void;
   onCreateTeam: (teamData: { name: string, agentIds: string[] }) => void;
   onExecuteCommand?: (messageId: string, toolCall: ToolCall) => void;
@@ -32,29 +30,13 @@ interface ChatViewProps {
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
-  messages, isLoading, typingAgent, typingAgents = [], onSubmit, onOpenTaskModal, onAddAgent, onCreateTeam, onExecuteCommand, onExpandMessage, onSaveToTasks, onInjectSystemMessage, mentionCandidates, onConfigureNewAgent, onDeployCustomTeam, prismStatus, isGroup = false, orchestrationWeights = {}, agentModes = {}, activeChatId, activeAgent, activeTeam
+  messages, isLoading, typingAgent, typingAgents = [], onSubmit, onAddAgent, onCreateTeam, onExecuteCommand, onExpandMessage, onSaveToTasks, onInjectSystemMessage, mentionCandidates, onConfigureNewAgent, onDeployCustomTeam, prismStatus, isGroup = false, orchestrationWeights = {}, agentModes = {}, activeChatId, activeAgent, activeTeam
 }) => {
-  const [isLiveSpaceOpen, setIsLiveSpaceOpen] = useState(false);
-
-  useEffect(() => {
-    setIsLiveSpaceOpen(false);
-  }, [activeChatId]);
-
   const isDispatching = prismStatus !== "";
   const activatedIds = typingAgents.length > 0 ? typingAgents.map(a => a.agent.id) : (typingAgent ? [typingAgent.id] : []);
 
   const canOpenLiveSpace = (activeAgent?.isLiveSpaceEnabled) || (activeTeam?.isLiveSpaceEnabled);
   const isPrism = activeChatId === 'prism-core';
-
-  const handleOpenLiveSpace = () => {
-    setIsLiveSpaceOpen(true);
-    onInjectSystemMessage?.("LiveTasking initialized. Workspace synchronization complete.");
-  };
-
-  const handleCloseLiveSpace = () => {
-    setIsLiveSpaceOpen(false);
-    onInjectSystemMessage?.("LiveTasking session terminated. All operational logs archived.");
-  };
 
   return (
     <div className="flex flex-col h-full w-full relative">
@@ -65,16 +47,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         weights={orchestrationWeights}
         agentModes={agentModes}
       />
-
-      {isLiveSpaceOpen && (
-        <LiveSpace
-          isOpen={isLiveSpaceOpen}
-          onClose={handleCloseLiveSpace}
-          onSaveToTasks={onSaveToTasks}
-          agents={activeTeam ? activeTeam.agents : (activeAgent ? [activeAgent] : [])}
-          isGroup={!!activeTeam}
-        />
-      )}
 
       <div className="flex-1 overflow-hidden flex flex-col relative">
         <ChatInterface
@@ -96,9 +68,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
       <div className="relative w-full">
         <InputBar
           onSubmit={onSubmit}
-          onOpenTaskModal={onOpenTaskModal}
-          onOpenLiveSpace={handleOpenLiveSpace}
-          canOpenLiveSpace={canOpenLiveSpace && !isLiveSpaceOpen}
           isLoading={isLoading}
           mentionCandidates={mentionCandidates}
           isGroup={isGroup}
