@@ -2,7 +2,7 @@
 import { Agent, AIModelProfile, AgentTemplate, AgentCapability, Team } from './types';
 
 export const VAULT = {
-    GOOGLE: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDno8x4_8tPs_UGgdXRR3I2gZ6IOJ8Eq6U',
+    GOOGLE: import.meta.env.VITE_GEMINI_API_KEY || '',
     AWS: {
         REGION: import.meta.env.VITE_AWS_REGION || 'us-east-1',
         COGNITO_USER_POOL_ID: import.meta.env.VITE_AWS_USER_POOL_ID || '',
