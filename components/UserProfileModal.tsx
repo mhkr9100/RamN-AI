@@ -22,6 +22,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
     const [geminiKey, setGeminiKey] = useState(user.geminiKey || '');
 
     const [activeTab, setActiveTab] = useState<'identity' | 'keys'>('identity');
+    const [keyStatus, setKeyStatus] = useState<Record<string, 'valid' | 'invalid' | 'testing' | undefined>>({});
+
+    const validateKey = async (provider: string, key: string) => {
+        if (!key.trim()) return;
+        setKeyStatus(s => ({ ...s, [provider]: 'testing' }));
+        try {
+            if (provider === 'gemini') {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                setKeyStatus(s => ({ ...s, gemini: res.ok ? 'valid' : 'invalid' }));
+            } else if (provider === 'openai') {
+                const res = await fetch('https://api.openai.com/v1/models', {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                setKeyStatus(s => ({ ...s, openai: res.ok ? 'valid' : 'invalid' }));
+            } else if (provider === 'anthropic') {
+                // Anthropic doesn't have a lightweight /models endpoint; just validate format
+                const valid = key.startsWith('sk-ant-');
+                setKeyStatus(s => ({ ...s, anthropic: valid ? 'valid' : 'invalid' }));
+            }
+        } catch {
+            setKeyStatus(s => ({ ...s, [provider]: 'invalid' }));
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -101,48 +124,63 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                         {activeTab === 'keys' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4">
-                                    <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Operational Connectors</h4>
+                                    <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">API Connectors</h4>
                                     <p className="text-[9px] text-white/40 leading-relaxed">
-                                        Prism Core uses platform-provided keys. All other agents require your own API keys to function.
+                                        All agents (including Prism) use your API keys. Add at least one key to get started. Click "Test" to validate.
                                     </p>
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="flex gap-4 items-center">
-                                        <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
-                                            OpenAI
+                                    {/* OpenAI */}
+                                    <div className="space-y-2">
+                                        <div className="flex gap-4 items-center">
+                                            <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                                OpenAI
+                                                {keyStatus.openai && <span className="ml-2">{keyStatus.openai === 'valid' ? '✅' : keyStatus.openai === 'invalid' ? '❌' : '⏳'}</span>}
+                                            </div>
+                                            <input
+                                                type="password"
+                                                value={openAiKey}
+                                                onChange={e => { setOpenAiKey(e.target.value); setKeyStatus(s => ({ ...s, openai: undefined })); }}
+                                                placeholder="sk-proj-..."
+                                                className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
+                                            />
+                                            <button type="button" onClick={() => validateKey('openai', openAiKey)} disabled={!openAiKey.trim()} className="px-3 py-2 text-[9px] font-bold uppercase bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 disabled:opacity-30 transition-all">Test</button>
                                         </div>
-                                        <input
-                                            type="password"
-                                            value={openAiKey}
-                                            onChange={e => setOpenAiKey(e.target.value)}
-                                            placeholder="sk-proj-..."
-                                            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
-                                        />
                                     </div>
-                                    <div className="flex gap-4 items-center">
-                                        <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
-                                            Anthropic
+                                    {/* Anthropic */}
+                                    <div className="space-y-2">
+                                        <div className="flex gap-4 items-center">
+                                            <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                                Anthropic
+                                                {keyStatus.anthropic && <span className="ml-2">{keyStatus.anthropic === 'valid' ? '✅' : keyStatus.anthropic === 'invalid' ? '❌' : '⏳'}</span>}
+                                            </div>
+                                            <input
+                                                type="password"
+                                                value={anthropicKey}
+                                                onChange={e => { setAnthropicKey(e.target.value); setKeyStatus(s => ({ ...s, anthropic: undefined })); }}
+                                                placeholder="sk-ant-api03-..."
+                                                className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
+                                            />
+                                            <button type="button" onClick={() => validateKey('anthropic', anthropicKey)} disabled={!anthropicKey.trim()} className="px-3 py-2 text-[9px] font-bold uppercase bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 disabled:opacity-30 transition-all">Test</button>
                                         </div>
-                                        <input
-                                            type="password"
-                                            value={anthropicKey}
-                                            onChange={e => setAnthropicKey(e.target.value)}
-                                            placeholder="sk-ant-api03-..."
-                                            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
-                                        />
                                     </div>
-                                    <div className="flex gap-4 items-center">
-                                        <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
-                                            Google Gemini
+                                    {/* Gemini */}
+                                    <div className="space-y-2">
+                                        <div className="flex gap-4 items-center">
+                                            <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                                Google Gemini
+                                                {keyStatus.gemini && <span className="ml-2">{keyStatus.gemini === 'valid' ? '✅' : keyStatus.gemini === 'invalid' ? '❌' : '⏳'}</span>}
+                                            </div>
+                                            <input
+                                                type="password"
+                                                value={geminiKey}
+                                                onChange={e => { setGeminiKey(e.target.value); setKeyStatus(s => ({ ...s, gemini: undefined })); }}
+                                                placeholder="AIzaSy..."
+                                                className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
+                                            />
+                                            <button type="button" onClick={() => validateKey('gemini', geminiKey)} disabled={!geminiKey.trim()} className="px-3 py-2 text-[9px] font-bold uppercase bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/60 disabled:opacity-30 transition-all">Test</button>
                                         </div>
-                                        <input
-                                            type="password"
-                                            value={geminiKey}
-                                            onChange={e => setGeminiKey(e.target.value)}
-                                            placeholder="AIzaSy..."
-                                            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
-                                        />
                                     </div>
                                 </div>
                             </div>

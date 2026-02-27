@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
 import { AGENTS, AI_RESUMES } from "../constants";
+import { canMakeRequest, recordRequest } from "./rateLimiter";
 
 /**
  * Resolve Prism's model dynamically based on which API key the user has.
@@ -33,6 +34,14 @@ async function hybridGenerateContent(params: any, userKeys?: { openAiKey?: strin
 
     for (let i = 0; i < maxRetries; i++) {
         try {
+            // Rate limit check
+            const rateCheck = canMakeRequest(provider);
+            if (!rateCheck.allowed) {
+                const secs = Math.ceil((rateCheck.retryAfterMs || 5000) / 1000);
+                throw new Error(`Slow down! Too many requests. Try again in ${secs} seconds.`);
+            }
+            recordRequest(provider);
+
             // ========== GOOGLE (Gemini) ==========
             if (provider === 'google') {
                 const apiKey = userKeys?.geminiKey;
@@ -427,13 +436,16 @@ export async function generateExpandedSolution(
 
 async function executeToolBackend(toolCall: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<any> {
     if (toolCall.name === 'executeSearch') {
-        const { model } = resolvePrismModel(userKeys);
-        const res = await hybridGenerateContent({
-            model,
-            contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
-            config: { tools: [{ googleSearch: {} }] }
-        }, userKeys);
-        return res.text;
+        // Google Search grounding only works with Gemini models
+        if (userKeys?.geminiKey) {
+            const res = await hybridGenerateContent({
+                model: 'gemini-2.5-flash',
+                contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
+                config: { tools: [{ googleSearch: {} }] }
+            }, userKeys);
+            return res.text;
+        }
+        return "⚠️ Live search requires a Gemini API key. The agent will respond using its existing knowledge instead.";
     }
     return "Operation complete.";
 }
@@ -441,17 +453,40 @@ async function executeToolBackend(toolCall: any, userKeys?: { openAiKey?: string
 export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<MessageContent | null> {
     try {
         if (toolCall.name === 'generateVisualAsset') {
-            const response = await hybridGenerateContent({
-                model: 'gemini-3-pro-image-preview',
-                contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
-            }, userKeys);
-            const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-            return {
-                type: 'image',
-                imageUrl: `data:image/png;base64,${part?.inlineData?.data}`,
-                mimeType: 'image/png',
-                text: `Synthesis Resolved.`
-            };
+            // GEMINI — native image generation
+            if (userKeys?.geminiKey) {
+                const response = await hybridGenerateContent({
+                    model: 'gemini-3-pro-image-preview',
+                    contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
+                }, userKeys);
+                const part = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+                if (part?.inlineData?.data) {
+                    return {
+                        type: 'image',
+                        imageUrl: `data:image/png;base64,${part.inlineData.data}`,
+                        mimeType: 'image/png',
+                        text: `Synthesis Resolved.`
+                    };
+                }
+            }
+            // OPENAI — DALL-E 3
+            if (userKeys?.openAiKey) {
+                const response = await fetch('https://api.openai.com/v1/images/generations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userKeys.openAiKey}` },
+                    body: JSON.stringify({ model: 'dall-e-3', prompt: toolCall.args.prompt, n: 1, size: '1024x1024', response_format: 'url' })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const url = data.data?.[0]?.url;
+                    if (url) return { type: 'image', imageUrl: url, mimeType: 'image/png', text: 'Synthesis Resolved.' };
+                }
+            }
+            // ANTHROPIC — no image generation
+            if (userKeys?.anthropicKey && !userKeys?.geminiKey && !userKeys?.openAiKey) {
+                return { type: 'text', text: '⚠️ Image generation is not available with Claude. Add a Gemini or OpenAI key to enable this feature.' };
+            }
+            return { type: 'text', text: '⚠️ Image generation requires a valid Gemini or OpenAI API key.' };
         }
         return { type: 'text', text: "Operation committed." };
     } catch (e: any) {
