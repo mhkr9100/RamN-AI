@@ -248,7 +248,8 @@ const CAPABILITY_TOOLS: Record<string, FunctionDeclaration> = {
                 },
                 modelId: { type: Type.STRING, description: 'MANDATORY: Give the specific AI model string. Follow guidelines specified in system prompt based on user API keys.' },
                 icon: { type: Type.STRING, description: 'Single emoji icon.' },
-                capabilities: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Enabled tools.' }
+                capabilities: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Enabled tools.' },
+                tools: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { toolId: { type: Type.STRING, description: 'Tool ID from catalog' }, endpoints: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Endpoint names to enable' } }, required: ['toolId', 'endpoints'] }, description: 'External API tools from the catalog to attach to this agent.' }
             },
             required: ['name', 'role', 'jobDescription', 'modelId', 'icon']
         }
@@ -271,7 +272,8 @@ const CAPABILITY_TOOLS: Record<string, FunctionDeclaration> = {
                             jobDescription: { type: Type.STRING, description: 'MANDATORY: Follow the 5-section system prompt format.' },
                             modelId: { type: Type.STRING, description: 'MANDATORY: Ensure model selection adheres strictly to user API configurations.' },
                             icon: { type: Type.STRING },
-                            capabilities: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            capabilities: { type: Type.ARRAY, items: { type: Type.STRING } },
+                            tools: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { toolId: { type: Type.STRING }, endpoints: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ['toolId', 'endpoints'] } }
                         },
                         required: ['name', 'role', 'jobDescription', 'modelId', 'icon']
                     }
@@ -504,6 +506,17 @@ export async function generatePrismResponse(
     setStatus("Refracting...");
     const { model, provider } = resolvePrismModel(userKeys);
     let modifiedPrism = { ...prismAgent, model, provider };
+
+    // Inject tool catalog context
+    try {
+        const { getToolCatalog, getToolCatalogSummary } = await import('./toolService');
+        const catalog = await getToolCatalog();
+        if (catalog.length > 0) {
+            const catalogSummary = getToolCatalogSummary(catalog);
+            modifiedPrism.jobDescription += `\n\n${catalogSummary}\n\nWhen fabricating agents, you SHOULD attach relevant tools from the catalog above using the 'tools' parameter. Each tool entry should have a 'toolId' (matching the catalog id) and an array of 'endpoints' (matching endpoint names from the catalog). This gives agents real-world capabilities beyond just conversation.`;
+        }
+    } catch { /* catalog unavailable — proceed without tools */ }
+
     if (availableProviders && availableProviders.length > 0) {
         modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user ONLY has access to the following AI Providers: ${availableProviders}. When fabricating agents or teams using tools, you MUST set the 'modelId' exclusively to one of the models from these providers.`;
     } else {

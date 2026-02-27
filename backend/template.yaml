@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: RamN AI Backend — CORS proxy, tool catalog, health
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs22.x
+    MemorySize: 256
+    Environment:
+      Variables:
+        ALLOWED_ORIGINS: "https://ramnai.com,http://localhost:5173"
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,X-Requested-With'"
+      AllowOrigin: "'*'"
+
+Resources:
+  RamnApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+        AllowOrigins:
+          - https://ramnai.com
+          - http://localhost:5173
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/health.handler
+      CodeUri: .
+      Events:
+        Health:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RamnApi
+            Path: /api/health
+            Method: GET
+
+  ProxyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/proxy.handler
+      CodeUri: .
+      Timeout: 60
+      Events:
+        Proxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RamnApi
+            Path: /api/proxy
+            Method: POST
+
+  ToolsListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/tools.listHandler
+      CodeUri: .
+      Events:
+        ListTools:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RamnApi
+            Path: /api/tools
+            Method: GET
+
+  ToolsExecuteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/tools.executeHandler
+      CodeUri: .
+      Timeout: 60
+      Events:
+        ExecuteTool:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RamnApi
+            Path: /api/tools/execute
+            Method: POST
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${RamnApi}.execute-api.${AWS::Region}.amazonaws.com/prod"

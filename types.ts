@@ -85,6 +85,10 @@ export interface Agent {
     size: number;
     uploadedAt: number;
   }[];
+  tools?: {
+    toolId: string;
+    endpoints: string[];
+  }[];
 }
 
 export interface ToolCall {
