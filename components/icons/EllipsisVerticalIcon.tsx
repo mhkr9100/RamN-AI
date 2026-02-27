@@ -1,6 +1,16 @@
 import React from 'react';
-export const EllipsisVerticalIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5ZM12 18.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
+
+export const EllipsisVerticalIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16, className = "" }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+    >
+        <circle cx="12" cy="5" r="1.5" />
+        <circle cx="12" cy="12" r="1.5" />
+        <circle cx="12" cy="19" r="1.5" />
     </svg>
 );

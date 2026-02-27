@@ -11,7 +11,7 @@ interface ChatInterfaceProps {
   typingAgent?: AgentType | null;
   typingAgents?: { agent: AgentType; tasks: any[] }[];
   onAddEmployee: (employeeData: Omit<AgentType, 'id' | 'type'>) => void;
-  onCreateGroup: (groupData: { name: string, agentIds: string[]}) => void;
+  onCreateGroup: (groupData: { name: string, agentIds: string[] }) => void;
   onConfigureNewAgent?: (profileId?: string, role?: string, jd?: string) => void;
   onDeployCustomGroup?: (suggestion: CustomGroupSuggestion) => void;
   onExecuteCommand?: (messageId: string, toolCall: ToolCall) => void;
@@ -19,18 +19,18 @@ interface ChatInterfaceProps {
   isPrism?: boolean;
 }
 
-export const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
-    messages, 
-    isLoading, 
-    typingAgent, 
-    typingAgents = [],
-    onAddEmployee, 
-    onCreateGroup,
-    onConfigureNewAgent,
-    onDeployCustomGroup,
-    onExecuteCommand,
-    onExpandMessage,
-    isPrism
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({
+  messages,
+  isLoading,
+  typingAgent,
+  typingAgents = [],
+  onAddEmployee,
+  onCreateGroup,
+  onConfigureNewAgent,
+  onDeployCustomGroup,
+  onExecuteCommand,
+  onExpandMessage,
+  isPrism
 }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -51,9 +51,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       <div className="mx-auto max-w-2xl lg:max-w-[48rem] xl:max-w-4xl space-y-6 px-4 py-8 relative z-10">
         {messages.map((msg) => (
-          <Message 
-            key={msg.id} 
-            message={msg} 
+          <Message
+            key={msg.id}
+            message={msg}
             onAddEmployee={onAddEmployee}
             onCreateGroup={onCreateGroup}
             onConfigureNewAgent={onConfigureNewAgent}
@@ -62,48 +62,44 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             onExpandMessage={onExpandMessage}
           />
         ))}
-        
+
         {/* Simultaneous Typing Indicators */}
         {isLoading && activeTypers.map((typerState, idx) => {
-             const isTaskMode = typingAgents.length > 0;
-             return (
-                 <div key={`${typerState.agent.id}-${idx}`} className="flex items-start gap-3 justify-start animate-fade-in mb-6">
-                    <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-xl flex-shrink-0 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
-                        {typerState.agent.profileImage ? (
-                            <img src={typerState.agent.profileImage} alt={typerState.agent.name} className="w-full h-full object-cover rounded-full" />
-                        ) : (
-                            typerState.agent.icon
-                        )}
+          const isTaskMode = typingAgents.length > 0;
+          return (
+            <div key={`${typerState.agent.id}-${idx}`} className="flex items-start gap-3 justify-start animate-fade-in mb-6">
+              <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-xl flex-shrink-0 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                {typerState.agent.icon}
+              </div>
+              <div className="flex flex-col gap-2 max-w-[80%]">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-blue-400 font-bold ml-1">{typerState.agent.name}</span>
+                  {isTaskMode && (
+                    <div className="flex gap-1">
+                      <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                      <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                      <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
                     </div>
-                    <div className="flex flex-col gap-2 max-w-[80%]">
-                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-blue-400 font-bold ml-1">{typerState.agent.name}</span>
-                            {isTaskMode && (
-                                <div className="flex gap-1">
-                                    <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                                    <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                                    <div className="w-1 h-1 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-                                </div>
-                            )}
-                         </div>
-
-                         <div className={`p-3 px-4 rounded-2xl w-fit bg-slate-900 border border-white/10 rounded-bl-none shadow-md flex items-center min-h-[44px]`}>
-                            {isTaskMode ? (
-                                <div className="flex items-center gap-2">
-                                    <LoadingSpinner width={24} height={12} />
-                                    <span className="text-xs text-slate-500 italic">Thinking...</span>
-                                </div>
-                            ) : (
-                                <div className="flex gap-1 py-1">
-                                    <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                                    <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                                    <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                  )}
                 </div>
-             );
+
+                <div className={`p-3 px-4 rounded-2xl w-fit bg-slate-900 border border-white/10 rounded-bl-none shadow-md flex items-center min-h-[44px]`}>
+                  {isTaskMode ? (
+                    <div className="flex items-center gap-2">
+                      <LoadingSpinner width={24} height={12} />
+                      <span className="text-xs text-slate-500 italic">Thinking...</span>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1 py-1">
+                      <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+                      <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+                      <div className="w-1.5 h-1.5 bg-blue-500/50 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
         })}
         <div ref={chatEndRef} />
       </div>

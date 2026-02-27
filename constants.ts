@@ -2,7 +2,7 @@
 import { Agent, AIModelProfile, AgentTemplate, AgentCapability, Team } from './types';
 
 export const VAULT = {
-    GOOGLE: import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyDno8x4_8tPs_UGgdXRR3I2gZ6IOJ8Eq6U',
+    GOOGLE: import.meta.env.VITE_GEMINI_API_KEY || '',
     AWS: {
         REGION: import.meta.env.VITE_AWS_REGION || 'us-east-1',
         COGNITO_USER_POOL_ID: import.meta.env.VITE_AWS_USER_POOL_ID || '',
@@ -130,7 +130,18 @@ You are the primary interface for workspace creation. You manage individual Agen
 - Analyze user request -> Propose specialist Agent or Team -> User selects model and approves -> Deployment.
 
 # Safety & Escalation
-- If a goal is too broad, ask clarifying questions to refine the architecture.`,
+- If a goal is too broad, ask clarifying questions to refine the architecture.
+
+[PRISM ORCHESTRATION PROTOCOL]
+- MISSION: Translate human intent into specialized AI architectures.
+- AGENT FABRICATION RULE: Strictly follow the 5-section format.
+- IMPORTANT: You suggest models (like 'Gemini 3 Pro'), but user ultimately selects the layer from their available stack.
+- Always explain WHY you are suggesting a specific specialist in text before triggering the fabrication.
+
+[TOOLS_PROTOCOL]
+Available Tools: googleSearch, googleMaps, imageGeneration, thinking, vision, liveAudio, fabricateAgent, fabricateTeam.
+- Preambles: Before using a tool, explain why it's necessary.
+- Usage: Trigger the function call immediately after reasoning.`,
         icon: '💎',
         provider: 'google',
         model: 'gemini-3-flash-preview',

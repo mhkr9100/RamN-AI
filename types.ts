@@ -16,19 +16,26 @@ export type AgentCapability =
   | 'fileManipulation';
 
 
-
-export interface ApiKeyEntry {
-  service: string;
-  key: string;
-}
-
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   avatar?: string;
   bio?: string;
-  apiKeys?: ApiKeyEntry[];
+  openAiKey?: string;
+  anthropicKey?: string;
+  geminiKey?: string;
+}
+
+export interface ChatSession {
+  id: string;
+  entityId: string; // agent or team ID
+  userId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messageCount: number;
+  isActive: boolean;
 }
 
 export interface GlobalTask {

@@ -6,65 +6,47 @@ import { AGENTS, AI_RESUMES, VAULT } from "../constants";
 /**
  * ROBUST API CALL WRAPPER
  */
-async function hybridGenerateContent(params: any, apiKey?: string, maxRetries = 3): Promise<GenerateContentResponse | any> {
+async function hybridGenerateContent(params: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }, maxRetries = 3): Promise<GenerateContentResponse | any> {
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
         try {
-            const finalKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY || (typeof VAULT !== 'undefined' ? VAULT.GOOGLE : undefined);
+            // Retrieve JWT token for internal proxy authentication
+            // We no longer retrieve raw api keys from import.meta.env or VAULT here, 
+            // the server handles fallback securely.
+            const token = localStorage.getItem('auth_token');
+            const authHeader = token ? `Bearer ${token}` : '';
 
-            if (finalKey && finalKey.startsWith('sk-or-')) {
-                const messages = [];
-                if (params.config?.systemInstruction) messages.push({ role: 'system', content: params.config.systemInstruction });
+            // 1. Send Payload to Secure Local Proxy Node
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': authHeader
+                },
+                body: JSON.stringify({
+                    model: params.model,
+                    contents: params.contents,
+                    config: params.config,
+                    userKeys: userKeys // Pass all available keys
+                })
+            });
 
-                for (const c of (params.contents || [])) {
-                    if (c.role === 'user' && c.parts?.[0]?.functionResponse) {
-                        messages.push({ role: 'tool', tool_call_id: c.parts[0].functionResponse.name, content: JSON.stringify(c.parts[0].functionResponse.response) });
-                    } else if (c.role === 'model' && c.parts?.[0]?.functionCall) {
-                        messages.push({
-                            role: 'assistant',
-                            tool_calls: [{ id: c.parts[0].functionCall.name, type: 'function', function: { name: c.parts[0].functionCall.name, arguments: JSON.stringify(c.parts[0].functionCall.args) } }]
-                        });
-                    } else {
-                        messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts[0]?.text || "" });
-                    }
+            if (!res.ok) {
+                if (res.status === 401) throw new Error("Authentication Required: Please login to access AI architecture.");
+                // Parse structured error from proxy
+                try {
+                    const errData = await res.json();
+                    throw new Error(errData.error || `Proxy Error: ${res.status}`);
+                } catch (parseErr: any) {
+                    if (parseErr.message && !parseErr.message.includes('Unexpected')) throw parseErr;
+                    throw new Error(`Proxy Error: ${res.status}`);
                 }
-
-                let tools;
-                if (params.config?.tools && params.config.tools[0]?.functionDeclarations) {
-                    tools = params.config.tools[0].functionDeclarations.map((t: any) => ({
-                        type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters }
-                    }));
-                }
-
-                const payload: any = {
-                    model: params.model.includes('/') ? params.model : `google/${params.model}`,
-                    messages
-                };
-                if (tools && tools.length > 0) payload.tools = tools;
-
-                const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${finalKey}`, 'HTTP-Referer': 'https://ramnai.com', 'X-Title': 'RamN AI' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!res.ok) throw new Error(`OpenRouter Error: ${res.status} ${await res.text()}`);
-
-                const data = await res.json();
-                const choice = data.choices[0];
-
-                if (choice?.message?.tool_calls && choice.message.tool_calls.length > 0) {
-                    const tc = choice.message.tool_calls[0];
-                    return {
-                        functionCalls: [{ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }],
-                        text: choice.message.content
-                    };
-                }
-                return { text: choice?.message?.content || "" };
-            } else {
-                const ai = new GoogleGenAI({ apiKey: finalKey as string });
-                return await ai.models.generateContent(params);
             }
+
+            // 2. Return Response in Expected Format
+            const data = await res.json();
+            return data;
+
         } catch (error: any) {
             lastError = error;
             const errorMessage = error.message || "";
@@ -200,18 +182,14 @@ export async function generateSingleAgentResponse(
     otherAgents: Agent[] = [],
     assignedTasks?: string[],
     responseMode: 'CHAT' | 'SOLUTION' | 'TASK' = 'CHAT',
-    apiKey?: string
+    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }
 ): Promise<MessageContent | null> {
 
     const caps = agent.capabilities || [];
     let systemPrompt = `You are ${agent.name}, ${agent.role}.\n\n`;
 
     if (agent.id === 'prism-core') {
-        systemPrompt += `[PRISM ORCHESTRATION PROTOCOL]\n`;
-        systemPrompt += `- MISSION: Translate human intent into specialized AI architectures.\n`;
-        systemPrompt += `- AGENT FABRICATION RULE: Strictly follow the 5-section format.\n`;
-        systemPrompt += `- IMPORTANT: You suggest models (like 'Gemini 3 Pro'), but user ultimately selects the layer from their available stack.\n`;
-        systemPrompt += `- Always explain WHY you are suggesting a specific specialist in text before triggering the fabrication.\n\n`;
+        // [PRISM ORCHESTRATION PROTOCOL] now resides in the base system prompt
     }
 
     systemPrompt += `[SYSTEM_INSTRUCTION]\n${agent.jobDescription}\n\n`;
@@ -225,7 +203,10 @@ export async function generateSingleAgentResponse(
     }
 
     if (caps.length > 0) {
-        systemPrompt += `[TOOLS_PROTOCOL]\nAvailable Tools: ${caps.join(', ')}.\n- Preambles: Before using a tool, explain why it's necessary.\n- Usage: Trigger the function call immediately after reasoning.\n\n`;
+        // [TOOLS_PROTOCOL] now resides in the base system prompt for Prism, though others may still need a slimmed version.
+        if (agent.id !== 'prism-core') {
+            systemPrompt += `[TOOLS_PROTOCOL]\nAvailable Tools: ${caps.join(', ')}.\n- Preambles: Before using a tool, explain why it's necessary.\n- Usage: Trigger the function call immediately after reasoning.\n\n`;
+        }
     }
 
     try {
@@ -248,14 +229,14 @@ export async function generateSingleAgentResponse(
                 tools: availableTools.length > 0 ? [{ functionDeclarations: availableTools }] : undefined,
                 thinkingConfig: agent.model.includes('pro') ? { thinkingBudget: 32768 } : undefined
             }
-        }, apiKey);
+        }, userKeys);
 
         if (response.functionCalls && response.functionCalls.length > 0) {
             const call = response.functionCalls[0];
             const safety = TOOL_SAFETY_MAP[call.name] || 'ACTION';
 
             if (safety === 'READ_ONLY') {
-                const toolOutput = await executeToolBackend(call, apiKey);
+                const toolOutput = await executeToolBackend(call, userKeys);
                 const finalResponse = await hybridGenerateContent({
                     model: agent.model,
                     contents: [
@@ -264,7 +245,7 @@ export async function generateSingleAgentResponse(
                         { role: 'user', parts: [{ functionResponse: { name: call.name, response: { result: toolOutput } } }] }
                     ] as any,
                     config: { systemInstruction: systemPrompt }
-                }, apiKey);
+                }, userKeys);
 
                 return {
                     type: 'text',
@@ -299,7 +280,11 @@ export async function generateSingleAgentResponse(
     }
 }
 
-export async function generateExpandedSolution(history: Message[], agent: Agent, apiKey?: string): Promise<string | null> {
+export async function generateExpandedSolution(
+    history: Message[],
+    agent: Agent,
+    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }
+): Promise<string | null> {
     const systemPrompt = `You are ${agent.name}.\n[DOMAINS OF AUTHORITY]\n${agent.jobDescription}\nProvide an exhaustive expanded solution for the previous interaction.`;
 
     try {
@@ -313,7 +298,7 @@ export async function generateExpandedSolution(history: Message[], agent: Agent,
             model: agent.model,
             contents: contents as any,
             config: { systemInstruction: systemPrompt }
-        }, apiKey);
+        }, userKeys);
 
         return response.text || null;
     } catch (e) {
@@ -321,25 +306,25 @@ export async function generateExpandedSolution(history: Message[], agent: Agent,
     }
 }
 
-async function executeToolBackend(toolCall: any, apiKey?: string): Promise<any> {
+async function executeToolBackend(toolCall: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<any> {
     if (toolCall.name === 'executeSearch') {
         const res = await hybridGenerateContent({
             model: 'gemini-3-flash-preview',
             contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
             config: { tools: [{ googleSearch: {} }] }
-        }, apiKey);
+        }, userKeys);
         return res.text;
     }
     return "Operation complete.";
 }
 
-export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall, apiKey?: string): Promise<MessageContent | null> {
+export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<MessageContent | null> {
     try {
         if (toolCall.name === 'generateVisualAsset') {
             const response = await hybridGenerateContent({
                 model: 'gemini-3-pro-image-preview',
                 contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
-            }, apiKey);
+            }, userKeys);
             const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
             return {
                 type: 'image',
@@ -354,7 +339,13 @@ export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall
     }
 }
 
-export async function generatePrismResponse(history: Message[], prismAgent: Agent, setStatus: (s: string) => void, apiKey?: string, availableProviders?: string) {
+export async function generatePrismResponse(
+    history: Message[],
+    prismAgent: Agent,
+    setStatus: (s: string) => void,
+    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string },
+    availableProviders?: string
+) {
     setStatus("Refracting...");
     let modifiedPrism = { ...prismAgent };
     if (availableProviders && availableProviders.length > 0) {
@@ -362,34 +353,5 @@ export async function generatePrismResponse(history: Message[], prismAgent: Agen
     } else {
         modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user has no external API keys configured. You MUST use 'gemini-1.5-flash-8b' as the 'modelId' for all agents fabricated via tools.`;
     }
-    return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', apiKey);
-}
-
-export async function dispatchGroupTask(userPrompt: string, groupAgents: Agent[], apiKey?: string) {
-    const system = `Expertise Pool:\n${groupAgents.map(a => `- ${a.id}: ${a.role}`).join('\n')}\nReturn JSON activations array with agentId, tasks, responseMode, and weight.`;
-
-    try {
-        const response = await hybridGenerateContent({
-            model: 'gemini-3-flash-preview',
-            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-            config: {
-                systemInstruction: system,
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            agentId: { type: Type.STRING },
-                            tasks: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            responseMode: { type: Type.STRING, enum: ['CHAT', 'SOLUTION', 'TASK', 'VOID'] },
-                            weight: { type: Type.NUMBER }
-                        },
-                        required: ['agentId', 'tasks', 'responseMode', 'weight']
-                    }
-                }
-            }
-        }, apiKey);
-        return JSON.parse(response.text || '[]');
-    } catch (e) { return []; }
+    return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', userKeys);
 }

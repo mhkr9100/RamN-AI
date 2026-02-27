@@ -8,21 +8,26 @@ import { SpectrumView } from './components/SpectrumView';
 import { ProfileSidebar } from './components/ProfileSidebar';
 import { LoginScreen } from './components/LoginScreen';
 import { HomeView } from './components/HomeView';
+import { UserMapView } from './components/UserMapView';
 import { useScatter } from './hooks/useScatter';
 import { useTasks } from './hooks/useTasks';
+import { useUserMap } from './hooks/useUserMap';
 import { Agent, GlobalTask, Message, UserProfile } from './types';
 import { AGENTS } from './constants';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const App: React.FC = () => {
   const {
     currentUser, isInitializing, login, logout, userProfile, setUserProfile, agents, setAgents, teams, setTeams,
     activeChatId, setActiveChatId, chatHistory, setChatHistory, isProcessing, typingAgent, typingAgents, prismStatus, orchestrationWeights, agentModes,
-    handleSendMessage, handleExecuteCommand, handleExpandMessage, injectOutputToChat, clearChat, loadChatHistory, recruitAgent, createTeam, deleteAgent, deleteTeam, processSilentDirective
+    handleSendMessage, handleExecuteCommand, handleExpandMessage, injectOutputToChat, clearChat, loadChatHistory, recruitAgent, createTeam, deleteAgent, deleteTeam, processSilentDirective,
+    chatSessions, activeSessionId, startNewSession, resumeSession, getSessionsForEntity
   } = useScatter();
 
   const { globalTasks, updateTaskStatus, deleteTask, updateTask, handleAddGlobalTask } = useTasks(processSilentDirective);
+  const { userMapTree, updateNode, deleteNode, addNode, consolidate, isConsolidating } = useUserMap(currentUser as UserProfile);
 
-  const [activeView, setActiveView] = useState<'home' | 'prism' | 'spectrum' | 'chats'>('home');
+  const [activeView, setActiveView] = useState<'home' | 'prism' | 'spectrum' | 'chats' | 'usermap'>('home');
   const [createModalType, setCreateModalType] = useState<'agent' | 'project' | null>(null);
   const [createModalInitialValues, setCreateModalInitialValues] = useState<any>(undefined);
 
@@ -77,6 +82,8 @@ const App: React.FC = () => {
         return <HomeView onStartChat={() => { setActiveView('prism'); setActiveChatId('prism-core'); }} onOpenProfile={() => setIsUserProfileOpen(true)} />;
       case 'spectrum':
         return <SpectrumView onHire={handleHireFromSpectrum} onFabricateAgent={() => setCreateModalType('agent')} onInitializeGroup={() => setCreateModalType('project')} agents={agents} teams={teams} userProfile={userProfile} />;
+      case 'usermap':
+        return <UserMapView tree={userMapTree} isConsolidating={isConsolidating} onUpdateNode={updateNode} onDeleteNode={deleteNode} onAddNode={addNode} onConsolidate={consolidate} />;
 
       default:
         // Automatically deselect Prism if we are supposed to be in 'chats' view and Prism is still active
@@ -100,14 +107,42 @@ const App: React.FC = () => {
           <div className="flex-1 flex overflow-hidden">
             <div className="flex-1 flex flex-col min-w-0 border-r border-white/5">
               <header className="h-16 border-b border-white/5 flex items-center justify-between px-4 md:px-6 bg-[#1A1A1A] z-10 flex-shrink-0">
-                <div className="ml-10 md:ml-0">
+                <div className="ml-10 md:ml-0 flex items-center gap-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">
                     {activeTeam && prismStatus ? <span className="text-white animate-pulse">{prismStatus}</span> : (isPrism ? "Prism Chat" : "Synchronized")}
                   </span>
                 </div>
-                <button onClick={() => setIsProfileSidebarOpen(!isProfileSidebarOpen)} className={`p-2 rounded-lg border transition-all ${isProfileSidebarOpen ? 'bg-white border-white text-black' : 'text-white/40 border-white/10 hover:bg-white/5'}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 1 1.063.852l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Session Controls */}
+                  <div className="flex items-center gap-1">
+                    {getSessionsForEntity(activeChatId).length > 1 && (
+                      <select
+                        value={activeSessionId || ''}
+                        onChange={(e) => {
+                          const session = chatSessions.find(s => s.id === e.target.value);
+                          if (session) resumeSession(session);
+                        }}
+                        className="bg-transparent border border-white/10 rounded-lg px-2 py-1.5 text-[9px] font-bold text-white/60 uppercase tracking-wider outline-none cursor-pointer hover:border-white/20 transition-all appearance-none"
+                      >
+                        {getSessionsForEntity(activeChatId).map((s, i) => (
+                          <option key={s.id} value={s.id} className="bg-[#1A1A1A] text-white">
+                            {s.title === 'New Chat' ? `Session ${getSessionsForEntity(activeChatId).length - i}` : s.title} — {new Date(s.updatedAt).toLocaleDateString()}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <button
+                      onClick={() => startNewSession(activeChatId)}
+                      title="Start new chat interval"
+                      className="p-1.5 rounded-lg border border-white/10 text-white/30 hover:text-white hover:border-white/30 hover:bg-white/5 transition-all"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    </button>
+                  </div>
+                  <button onClick={() => setIsProfileSidebarOpen(!isProfileSidebarOpen)} className={`p-2 rounded-lg border transition-all ${isProfileSidebarOpen ? 'bg-white border-white text-black' : 'text-white/40 border-white/10 hover:bg-white/5'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 1 1.063.852l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
+                  </button>
+                </div>
               </header>
 
               <div className="flex-1 overflow-hidden relative">
@@ -158,7 +193,18 @@ const App: React.FC = () => {
       />
 
       <main className="flex-1 flex flex-col relative min-w-0 bg-[#1A1A1A]">
-        {renderContent()}
+        <ErrorBoundary fallback={
+          <div className="flex-1 flex items-center justify-center p-8 text-center bg-[#1A1A1A]">
+            <div>
+              <div className="w-16 h-16 bg-red-500/10 rounded-2xl mx-auto mb-4 flex items-center justify-center border border-red-500/20">⚠️</div>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-red-400 to-rose-400 bg-clip-text text-transparent mb-2">Workspace Render Error</h2>
+              <p className="text-white/40 max-w-sm mb-6">A component failure occurred while rendering the active view.</p>
+              <button onClick={() => window.location.reload()} className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 text-sm">Force Reload</button>
+            </div>
+          </div>
+        }>
+          {renderContent()}
+        </ErrorBoundary>
       </main>
 
       {createModalType && (

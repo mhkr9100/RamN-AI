@@ -5,14 +5,14 @@ import { XMarkIcon } from '../icons/XMarkIcon';
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { 
-    label: string; 
-    scheduledTime: number; 
-    isRecurring: boolean; 
+  onSubmit: (data: {
+    label: string;
+    scheduledTime: number;
+    isRecurring: boolean;
     recurrenceType?: GlobalTask['recurrenceType'];
     recurrenceValue?: string;
-    agentId: string; 
-    teamId?: string 
+    agentId: string;
+    teamId?: string
   }) => void;
   agents: Agent[];
   activeAgent?: Agent;
@@ -21,10 +21,10 @@ interface TaskModalProps {
   isReadOnly?: boolean;
 }
 
-export const TaskModal: React.FC<TaskModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
+export const TaskModal: React.FC<TaskModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
   agents,
   activeAgent,
   activeTeam,
@@ -37,30 +37,30 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<GlobalTask['recurrenceType']>('daily');
   const [recurrenceValue, setRecurrenceValue] = useState('');
-  
+
   const pool = activeTeam ? activeTeam.agents : agents;
   const [selectedAgentId, setSelectedAgentId] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-        if (initialTask) {
-            setLabel(initialTask.label);
-            const d = new Date(initialTask.scheduledTime || initialTask.createdAt);
-            setDate(d.toISOString().split('T')[0]);
-            setTime(d.toTimeString().split(' ')[0].slice(0, 5));
-            setIsRecurring(initialTask.isRecurring || false);
-            setRecurrenceType(initialTask.recurrenceType || 'daily');
-            setRecurrenceValue(initialTask.recurrenceValue || '');
-            setSelectedAgentId(initialTask.agentId);
-        } else {
-            setLabel('');
-            setDate(new Date().toISOString().split('T')[0]);
-            setTime(new Date().toTimeString().split(' ')[0].slice(0, 5));
-            setIsRecurring(false);
-            setRecurrenceType('daily');
-            setRecurrenceValue('');
-            setSelectedAgentId(activeAgent?.id || pool[0]?.id || '');
-        }
+      if (initialTask) {
+        setLabel(initialTask.label);
+        const d = new Date(initialTask.scheduledTime || initialTask.createdAt);
+        setDate(d.toISOString().split('T')[0]);
+        setTime(d.toTimeString().split(' ')[0].slice(0, 5));
+        setIsRecurring(initialTask.isRecurring || false);
+        setRecurrenceType(initialTask.recurrenceType || 'daily');
+        setRecurrenceValue(initialTask.recurrenceValue || '');
+        setSelectedAgentId(initialTask.agentId);
+      } else {
+        setLabel('');
+        setDate(new Date().toISOString().split('T')[0]);
+        setTime(new Date().toTimeString().split(' ')[0].slice(0, 5));
+        setIsRecurring(false);
+        setRecurrenceType('daily');
+        setRecurrenceValue('');
+        setSelectedAgentId(activeAgent?.id || pool[0]?.id || '');
+      }
     }
   }, [initialTask, isOpen, pool, activeAgent]);
 
@@ -69,9 +69,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (isReadOnly) return;
-    
+
     const scheduledTime = new Date(`${date}T${time}`).getTime();
-    
+
     onSubmit({
       label,
       scheduledTime,
@@ -90,8 +90,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         <div className="flex items-center justify-between p-5 border-b border-white/10 bg-black">
           <div className="flex flex-col">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span className="text-blue-500">◈</span> 
-                {isReadOnly ? 'Directive Details' : initialTask ? 'Refine Directive' : 'Assign Directive'}
+              <span className="text-blue-500">◈</span>
+              {isReadOnly ? 'Directive Details' : initialTask ? 'Refine Directive' : 'Assign Directive'}
             </h2>
             <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest mt-1">Autonomous Mission Parameters</p>
           </div>
@@ -103,9 +103,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto custom-scrollbar max-h-[75vh]">
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Primary Objective</label>
-            <textarea 
-              value={label} 
-              onChange={e => setLabel(e.target.value)} 
+            <textarea
+              value={label}
+              onChange={e => setLabel(e.target.value)}
               required
               rows={3}
               disabled={isReadOnly}
@@ -117,9 +117,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Activation Date</label>
-              <input 
-                type="date" 
-                value={date} 
+              <input
+                type="date"
+                value={date}
                 onChange={e => setDate(e.target.value)}
                 disabled={isReadOnly}
                 className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none text-white disabled:opacity-50"
@@ -127,9 +127,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Execution Time</label>
-              <input 
-                type="time" 
-                value={time} 
+              <input
+                type="time"
+                value={time}
                 onChange={e => setTime(e.target.value)}
                 disabled={isReadOnly}
                 className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none text-white disabled:opacity-50"
@@ -138,76 +138,76 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </div>
 
           <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Executing Specialist</label>
-              <select 
-                value={selectedAgentId} 
-                onChange={e => setSelectedAgentId(e.target.value)}
-                disabled={isReadOnly || (!!activeAgent && !activeTeam && !initialTask)}
-                className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none text-white disabled:opacity-50 appearance-none"
-              >
-                {pool.map(a => <option key={a.id} value={a.id}>{a.name} ({a.role})</option>)}
-              </select>
-              {activeTeam && <p className="text-[9px] text-blue-500/60 mt-2 italic font-mono uppercase tracking-tight">Routing directive within group spectrum</p>}
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Executing Specialist</label>
+            <select
+              value={selectedAgentId}
+              onChange={e => setSelectedAgentId(e.target.value)}
+              disabled={isReadOnly || (!!activeAgent && !activeTeam && !initialTask)}
+              className="w-full bg-black border border-white/10 rounded-xl p-3 text-sm focus:border-blue-500 outline-none text-white disabled:opacity-50 appearance-none"
+            >
+              {pool.map(a => <option key={a.id} value={a.id}>{a.name} ({a.role})</option>)}
+            </select>
+            {activeTeam && <p className="text-[9px] text-blue-500/60 mt-2 italic font-mono uppercase tracking-tight">Routing directive within group spectrum</p>}
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-xl">
-                <div className="flex flex-col">
+              <div className="flex flex-col">
                 <span className="text-xs font-bold text-slate-200">Autonomous Routine</span>
                 <span className="text-[10px] text-slate-500 uppercase">Repeat mission periodically</span>
-                </div>
-                <button 
+              </div>
+              <button
                 type="button"
                 disabled={isReadOnly}
                 onClick={() => setIsRecurring(!isRecurring)}
                 className={`w-12 h-6 rounded-full transition-all relative disabled:opacity-50 ${isRecurring ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]' : 'bg-slate-800'}`}
-                >
+              >
                 <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-sm ${isRecurring ? 'left-7' : 'left-1'}`} />
-                </button>
+              </button>
             </div>
 
             {isRecurring && (
-                <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-300">
-                    <div>
-                        <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Recurrence Frequency</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {(['daily', 'weekly', 'monthly', 'custom'] as const).map(type => (
-                                <button
-                                    key={type}
-                                    type="button"
-                                    disabled={isReadOnly}
-                                    onClick={() => setRecurrenceType(type)}
-                                    className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${recurrenceType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-black border-white/10 text-slate-500 hover:border-white/20'}`}
-                                >
-                                    {type}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {recurrenceType === 'custom' && (
-                        <div>
-                            <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Custom Rule (e.g. Every 2 days)</label>
-                            <input 
-                                type="text"
-                                value={recurrenceValue}
-                                onChange={e => setRecurrenceValue(e.target.value)}
-                                disabled={isReadOnly}
-                                placeholder="Enter interval logic..."
-                                className="w-full bg-black border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                    )}
+              <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl space-y-4 animate-in slide-in-from-top-2 duration-300">
+                <div>
+                  <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Recurrence Frequency</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['daily', 'weekly', 'monthly', 'custom'] as const).map(type => (
+                      <button
+                        key={type}
+                        type="button"
+                        disabled={isReadOnly}
+                        onClick={() => setRecurrenceType(type)}
+                        className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all border ${recurrenceType === type ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-black border-white/10 text-slate-500 hover:border-white/20'}`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {recurrenceType === 'custom' && (
+                  <div>
+                    <label className="block text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2">Custom Rule (e.g. Every 2 days)</label>
+                    <input
+                      type="text"
+                      value={recurrenceValue}
+                      onChange={e => setRecurrenceValue(e.target.value)}
+                      disabled={isReadOnly}
+                      placeholder="Enter interval logic..."
+                      className="w-full bg-black border border-white/10 rounded-lg p-2.5 text-sm text-white focus:border-indigo-500 outline-none"
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
           {!isReadOnly && (
-            <button 
-                type="submit" 
-                className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xl shadow-blue-900/20 transition-all active:scale-95 mt-2"
+            <button
+              type="submit"
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-xl shadow-blue-900/20 transition-all active:scale-95 mt-2"
             >
-                {initialTask ? 'Commit Updates' : 'Commit Mission'}
+              {initialTask ? 'Commit Updates' : 'Commit Mission'}
             </button>
           )}
         </form>

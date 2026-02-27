@@ -1,6 +1,5 @@
 
 import React, { useState, useRef } from 'react';
-import { AGENT_TEMPLATES, AI_RESUMES } from '../constants';
 import { AIModelProfile, AgentTemplate, Agent, Team, UserProfile } from '../types';
 
 interface SpectrumViewProps {
@@ -18,9 +17,6 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
 
     const userAgents = agents.filter(a => !a.isSystem);
     const userTeams = teams.filter(t => !t.isSystem);
-
-    const hasKeys = userProfile.apiKeys && userProfile.apiKeys.length > 0;
-    const availableModels = hasKeys ? AI_RESUMES : [];
 
     const scrollToSection = (index: number) => {
         if (scrollContainerRef.current) {
@@ -112,45 +108,21 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                                     details={`${team.agents.length} specialized units enrolled.`}
                                 />
                             ))}
-                        </div>
-                    </div>
-                </div>
 
-                {/* SECTION 3: SPECIAL AGENTS */}
-                <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
-                    <div className="max-w-5xl mx-auto">
-                        <div className="mb-8 flex items-center gap-4">
-                            <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">Special Agents</h3>
-                            <div className="h-px flex-1 bg-white/5" />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {AGENT_TEMPLATES.map(item => (
-                                <ListItem
-                                    key={item.id}
-                                    icon={item.icon}
-                                    name={item.name}
-                                    sub={item.role}
-                                    tagline={item.tagline}
-                                    onClick={() => onHire(item)}
-                                    isExpanded={expandedId === item.id}
-                                    onToggleExpand={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                                    details={item.jobDescription}
-                                />
-                            ))}
-                            {AI_RESUMES.map(model => (
-                                <ListItem
-                                    key={model.id}
-                                    icon={model.icon}
-                                    name={model.name}
-                                    sub={model.tagline}
-                                    tagline={model.summary}
-                                    onClick={() => onHire(model)}
-                                    isExpanded={expandedId === model.id}
-                                    onToggleExpand={() => setExpandedId(expandedId === model.id ? null : model.id)}
-                                    details={model.bestFor.join(', ')}
-                                />
-                            ))}
+                            {/* The condition for displaying "No Active Units Found" has been updated based on the instruction. */}
+                            {userAgents.length === 0 && userTeams.length === 0 && (
+                                <div className="col-span-1 md:col-span-2 flex flex-col items-center justify-center p-12 bg-white/[0.01] border border-white/5 rounded-2xl">
+                                    <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 text-white/20">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-8 h-8">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                        </svg>
+                                    </div>
+                                    <h4 className="text-white/60 font-medium text-sm mb-2">No Active Units Found</h4>
+                                    <p className="text-white/30 text-xs text-center max-w-sm">
+                                        Use the buttons above to create a Custom Agent or initialize a Group to begin populating your roster.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

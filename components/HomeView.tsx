@@ -1,5 +1,5 @@
 import React from 'react';
-import { PrismIcon } from './icons/PrismIcon';
+import { RamanIcon } from './icons/RamanIcon';
 import { motion } from 'motion/react';
 import { Key, Bot, Users, MessageSquare, Sparkles, HelpCircle } from 'lucide-react';
 
@@ -18,8 +18,8 @@ export const HomeView: React.FC<HomeViewProps> = ({ onStartChat, onOpenProfile }
                     transition={{ duration: 0.8 }}
                     className="flex flex-col items-center text-center space-y-12"
                 >
-                    <div className="text-white">
-                        <PrismIcon size={80} />
+                    <div className="text-white/30">
+                        <RamanIcon size={120} />
                     </div>
 
                     <div className="space-y-6">

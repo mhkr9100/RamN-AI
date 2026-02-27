@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UserProfile, ApiKeyEntry } from '../types';
+import { UserProfile } from '../types';
 import { XMarkIcon } from './icons/XMarkIcon';
 
 interface UserProfileModalProps {
@@ -15,34 +15,27 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
     const [name, setName] = useState(user.name);
     const [email, setEmail] = useState(user.email);
     const [avatar, setAvatar] = useState(user.avatar || '');
-    const [localApiKeys, setLocalApiKeys] = useState<ApiKeyEntry[]>([{ service: '', key: '' }]);
-    const [activeTab, setActiveTab] = useState<'identity' | 'keys'>('identity');
 
-    useEffect(() => {
-        if (user.apiKeys && user.apiKeys.length > 0) {
-            setLocalApiKeys([...user.apiKeys, { service: '', key: '' }]);
-        } else {
-            setLocalApiKeys([{ service: '', key: '' }]);
-        }
-    }, [user.apiKeys]);
+    // Multi-Provider API Keys
+    const [openAiKey, setOpenAiKey] = useState(user.openAiKey || '');
+    const [anthropicKey, setAnthropicKey] = useState(user.anthropicKey || '');
+    const [geminiKey, setGeminiKey] = useState(user.geminiKey || '');
+
+    const [activeTab, setActiveTab] = useState<'identity' | 'keys'>('identity');
 
     if (!isOpen) return null;
 
-    const handleKeyChange = (index: number, field: 'service' | 'key', value: string) => {
-        const newKeys = [...localApiKeys];
-        newKeys[index] = { ...newKeys[index], [field]: value };
-
-        // If the last key is being filled, add a new empty one
-        if (index === newKeys.length - 1 && value.trim() !== '') {
-            newKeys.push({ service: '', key: '' });
-        }
-        setLocalApiKeys(newKeys);
-    };
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const filteredKeys = localApiKeys.filter(k => k.key.trim() !== '' && k.service.trim() !== '');
-        onSave({ ...user, name, email, avatar, apiKeys: filteredKeys });
+        onSave({
+            ...user,
+            name,
+            email,
+            avatar,
+            openAiKey: openAiKey.trim(),
+            anthropicKey: anthropicKey.trim(),
+            geminiKey: geminiKey.trim()
+        });
         onClose();
     };
 
@@ -115,33 +108,42 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                                 </div>
 
                                 <div className="space-y-4">
-                                    {[
-                                        { id: 'OpenRouter', placeholder: 'sk-or-v1-...' },
-                                        { id: 'HuggingFace', placeholder: 'hf_...' }
-                                    ].map((provider) => {
-                                        const existingKey = localApiKeys.find(k => k.service === provider.id)?.key || '';
-                                        return (
-                                            <div key={provider.id} className="flex gap-4 items-center">
-                                                <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
-                                                    {provider.id}
-                                                </div>
-                                                <input
-                                                    type="password"
-                                                    value={existingKey}
-                                                    onChange={e => {
-                                                        const val = e.target.value;
-                                                        setLocalApiKeys(prev => {
-                                                            const filtered = prev.filter(k => k.service !== provider.id && k.service !== '');
-                                                            if (val.trim() === '') return filtered;
-                                                            return [...filtered, { service: provider.id, key: val }];
-                                                        });
-                                                    }}
-                                                    placeholder={`API Key (${provider.placeholder})`}
-                                                    className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
-                                                />
-                                            </div>
-                                        );
-                                    })}
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                            OpenAI
+                                        </div>
+                                        <input
+                                            type="password"
+                                            value={openAiKey}
+                                            onChange={e => setOpenAiKey(e.target.value)}
+                                            placeholder="sk-proj-..."
+                                            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                            Anthropic
+                                        </div>
+                                        <input
+                                            type="password"
+                                            value={anthropicKey}
+                                            onChange={e => setAnthropicKey(e.target.value)}
+                                            placeholder="sk-ant-api03-..."
+                                            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex gap-4 items-center">
+                                        <div className="w-1/3 text-[10px] font-black uppercase tracking-widest text-white/60">
+                                            Google Gemini
+                                        </div>
+                                        <input
+                                            type="password"
+                                            value={geminiKey}
+                                            onChange={e => setGeminiKey(e.target.value)}
+                                            placeholder="AIzaSy..."
+                                            className="flex-1 bg-black border border-white/10 rounded-xl p-3 text-xs font-mono text-white focus:border-indigo-500 outline-none transition-all"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
