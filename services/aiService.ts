@@ -1,65 +1,183 @@
 
 import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
-import { AGENTS, AI_RESUMES, VAULT } from "../constants";
+import { AGENTS, AI_RESUMES } from "../constants";
 
 /**
- * ROBUST API CALL WRAPPER
+ * Resolve Prism's model dynamically based on which API key the user has.
+ * Picks the fastest/smallest model from the available provider.
+ */
+export function resolvePrismModel(userKeys?: { openAiKey?: string; anthropicKey?: string; geminiKey?: string }): { model: string; provider: 'google' | 'openai' | 'anthropic' | 'auto' } {
+    if (userKeys?.geminiKey) return { model: 'gemini-2.5-flash', provider: 'google' };
+    if (userKeys?.openAiKey) return { model: 'gpt-4o-mini', provider: 'openai' };
+    if (userKeys?.anthropicKey) return { model: 'claude-3-5-haiku-latest', provider: 'anthropic' };
+    return { model: 'gemini-2.5-flash', provider: 'google' }; // fallback
+}
+
+/**
+ * Determine provider from model name
+ */
+function detectProvider(model: string): string {
+    if (model.includes('gemini') || model.includes('learnlm')) return 'google';
+    if (model.includes('gpt') || model.includes('o1') || model.includes('o3')) return 'openai';
+    if (model.includes('claude')) return 'anthropic';
+    return 'google';
+}
+
+/**
+ * DIRECT API CALL — No proxy. Calls Google/OpenAI/Anthropic directly from the browser.
  */
 async function hybridGenerateContent(params: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }, maxRetries = 3): Promise<GenerateContentResponse | any> {
+    const provider = detectProvider(params.model);
     let lastError: any;
+
     for (let i = 0; i < maxRetries; i++) {
         try {
-            // Retrieve JWT token for internal proxy authentication
-            // We no longer retrieve raw api keys from import.meta.env or VAULT here, 
-            // the server handles fallback securely.
-            const token = localStorage.getItem('auth_token');
-            const authHeader = token ? `Bearer ${token}` : '';
+            // ========== GOOGLE (Gemini) ==========
+            if (provider === 'google') {
+                const apiKey = userKeys?.geminiKey;
+                if (!apiKey) throw new Error('Gemini API key required. Add it in User Profile → API Keys.');
 
-            // 1. Send Payload to Secure Local Proxy Node
-            const res = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': authHeader
-                },
-                body: JSON.stringify({
-                    model: params.model,
+                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${apiKey}`;
+                const payload: any = {
                     contents: params.contents,
-                    config: params.config,
-                    userKeys: userKeys // Pass all available keys
-                })
-            });
+                    systemInstruction: params.config?.systemInstruction ? { parts: [{ text: params.config.systemInstruction }] } : undefined,
+                    tools: params.config?.tools,
+                    generationConfig: params.config?.thinkingConfig ? { thinkingConfig: params.config.thinkingConfig } : undefined
+                };
 
-            if (!res.ok) {
-                if (res.status === 401) throw new Error("Authentication Required: Please login to access AI architecture.");
-                // Parse structured error from proxy
-                try {
-                    const errData = await res.json();
-                    throw new Error(errData.error || `Proxy Error: ${res.status}`);
-                } catch (parseErr: any) {
-                    if (parseErr.message && !parseErr.message.includes('Unexpected')) throw parseErr;
-                    throw new Error(`Proxy Error: ${res.status}`);
+                const response = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    if (errText.includes('API_KEY_INVALID')) throw new Error('Your Gemini API key is invalid. Please check it in User Profile.');
+                    if (errText.includes('RESOURCE_EXHAUSTED') || response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
+                    throw new Error(`Google API Error: ${errText.substring(0, 200)}`);
                 }
+
+                const data = await response.json();
+                const part = data.candidates?.[0]?.content?.parts?.[0];
+                if (part?.functionCall) {
+                    return { functionCalls: [{ id: part.functionCall.name, name: part.functionCall.name, args: part.functionCall.args }], text: '' };
+                }
+                return { text: part?.text || '', candidates: data.candidates };
             }
 
-            // 2. Return Response in Expected Format
-            const data = await res.json();
-            return data;
+            // ========== OPENAI ==========
+            if (provider === 'openai') {
+                const apiKey = userKeys?.openAiKey;
+                if (!apiKey) throw new Error('OpenAI API key required. Add it in User Profile → API Keys.');
+
+                // Convert Gemini format to OpenAI format
+                const messages: any[] = [];
+                if (params.config?.systemInstruction) {
+                    messages.push({ role: 'system', content: params.config.systemInstruction });
+                }
+                for (const c of (params.contents || [])) {
+                    if (c.role === 'user' && c.parts?.[0]?.functionResponse) {
+                        messages.push({ role: 'tool', tool_call_id: c.parts[0].functionResponse.name, content: JSON.stringify(c.parts[0].functionResponse.response) });
+                    } else if (c.role === 'model' && c.parts?.[0]?.functionCall) {
+                        messages.push({
+                            role: 'assistant',
+                            tool_calls: [{ id: c.parts[0].functionCall.name, type: 'function', function: { name: c.parts[0].functionCall.name, arguments: JSON.stringify(c.parts[0].functionCall.args) } }]
+                        });
+                    } else {
+                        messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts?.[0]?.text || '' });
+                    }
+                }
+
+                let tools: any[] = [];
+                if (params.config?.tools?.[0]?.functionDeclarations) {
+                    tools = params.config.tools[0].functionDeclarations.map((t: any) => ({
+                        type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters }
+                    }));
+                }
+
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                    body: JSON.stringify({
+                        model: params.model,
+                        messages,
+                        ...(tools.length > 0 ? { tools } : {})
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    if (response.status === 401) throw new Error('Your OpenAI API key is invalid. Please check it in User Profile.');
+                    if (response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
+                    throw new Error(`OpenAI Error: ${errText.substring(0, 200)}`);
+                }
+
+                const data = await response.json();
+                const choice = data.choices?.[0];
+                if (choice?.message?.tool_calls?.[0]) {
+                    const tc = choice.message.tool_calls[0];
+                    return { functionCalls: [{ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }], text: choice.message.content || '' };
+                }
+                return { text: choice?.message?.content || '' };
+            }
+
+            // ========== ANTHROPIC ==========
+            if (provider === 'anthropic') {
+                const apiKey = userKeys?.anthropicKey;
+                if (!apiKey) throw new Error('Anthropic API key required. Add it in User Profile → API Keys.');
+
+                const messages: any[] = [];
+                for (const c of (params.contents || [])) {
+                    messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts?.[0]?.text || '' });
+                }
+
+                let tools: any[] = [];
+                if (params.config?.tools?.[0]?.functionDeclarations) {
+                    tools = params.config.tools[0].functionDeclarations.map((t: any) => ({
+                        name: t.name, description: t.description, input_schema: t.parameters
+                    }));
+                }
+
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: params.model,
+                        max_tokens: 4096,
+                        system: params.config?.systemInstruction || '',
+                        messages,
+                        ...(tools.length > 0 ? { tools } : {})
+                    })
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    if (response.status === 401) throw new Error('Your Anthropic API key is invalid. Please check it in User Profile.');
+                    if (response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
+                    throw new Error(`Anthropic Error: ${errText.substring(0, 200)}`);
+                }
+
+                const data = await response.json();
+                const toolUse = data.content?.find((b: any) => b.type === 'tool_use');
+                if (toolUse) {
+                    return { functionCalls: [{ id: toolUse.id, name: toolUse.name, args: toolUse.input }], text: data.content?.find((b: any) => b.type === 'text')?.text || '' };
+                }
+                return { text: data.content?.find((b: any) => b.type === 'text')?.text || '' };
+            }
+
+            throw new Error(`Unsupported provider for model: ${params.model}`);
 
         } catch (error: any) {
             lastError = error;
             const errorMessage = error.message || "";
-            const isQuotaError = errorMessage.includes("429") || errorMessage.includes("RESOURCE_EXHAUSTED") || error.status === 429;
-            const isEntityNotFoundError = errorMessage.includes("Requested entity was not found.");
-
-            if (isEntityNotFoundError) {
-                // @ts-ignore
-                if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-                    // @ts-ignore
-                    window.aistudio.openSelectKey();
-                }
-            }
+            const isQuotaError = errorMessage.includes("RESOURCE_EXHAUSTED") || errorMessage.includes("429");
 
             if (isQuotaError && i < maxRetries - 1) {
                 const delay = Math.pow(2, i) * 2000 + Math.random() * 1000;
@@ -72,6 +190,7 @@ async function hybridGenerateContent(params: any, userKeys?: { openAiKey?: strin
     }
     throw lastError;
 }
+
 
 const TOOL_SAFETY_MAP: Record<string, 'READ_ONLY' | 'ACTION'> = {
     executeSearch: 'READ_ONLY',
@@ -308,8 +427,9 @@ export async function generateExpandedSolution(
 
 async function executeToolBackend(toolCall: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<any> {
     if (toolCall.name === 'executeSearch') {
+        const { model } = resolvePrismModel(userKeys);
         const res = await hybridGenerateContent({
-            model: 'gemini-3-flash-preview',
+            model,
             contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
             config: { tools: [{ googleSearch: {} }] }
         }, userKeys);
@@ -347,11 +467,12 @@ export async function generatePrismResponse(
     availableProviders?: string
 ) {
     setStatus("Refracting...");
-    let modifiedPrism = { ...prismAgent };
+    const { model, provider } = resolvePrismModel(userKeys);
+    let modifiedPrism = { ...prismAgent, model, provider };
     if (availableProviders && availableProviders.length > 0) {
         modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user ONLY has access to the following AI Providers: ${availableProviders}. When fabricating agents or teams using tools, you MUST set the 'modelId' exclusively to one of the models from these providers.`;
     } else {
-        modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user has no external API keys configured. You MUST use 'gemini-1.5-flash-8b' as the 'modelId' for all agents fabricated via tools.`;
+        modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user has no external API keys configured. Guide them to add API keys in their User Profile.`;
     }
     return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', userKeys);
 }

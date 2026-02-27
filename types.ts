@@ -60,7 +60,7 @@ export interface Agent {
   role: string;
   jobDescription: string;
   icon: string;
-  provider: 'google';
+  provider: 'google' | 'openai' | 'anthropic' | 'auto';
   model: string;
   profileImage?: string;
   apiKey?: string;
@@ -176,7 +176,7 @@ export interface AIModelProfile {
   id: string;
   name: string;
   version: string;
-  provider: 'google';
+  provider: 'google' | 'auto';
   modelId: string;
   icon: string;
   tagline: string;
@@ -187,7 +187,7 @@ export interface AIModelProfile {
   cons: string[];
   bestFor: string[];
   bestWhen: string[];
-  defaultApiKey: string;
+  defaultApiKey?: string;
   primaryUse: string;
   tone: string;
   performance: string;

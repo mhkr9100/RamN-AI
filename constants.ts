@@ -2,7 +2,6 @@
 import { Agent, AIModelProfile, AgentTemplate, AgentCapability, Team } from './types';
 
 export const VAULT = {
-    GOOGLE: import.meta.env.VITE_GEMINI_API_KEY || '',
     AWS: {
         REGION: import.meta.env.VITE_AWS_REGION || 'us-east-1',
         COGNITO_USER_POOL_ID: import.meta.env.VITE_AWS_USER_POOL_ID || '',
@@ -30,7 +29,7 @@ export const AI_RESUMES: AIModelProfile[] = [
         cons: ['Lacks deep reasoning of Pro'],
         bestFor: ['Assistance', 'Summaries'],
         bestWhen: ['Speed is priority.'],
-        defaultApiKey: VAULT.GOOGLE,
+
         primaryUse: 'General purpose intelligence',
         tone: 'Concise',
         performance: 'Leader in speed',
@@ -52,7 +51,7 @@ export const AI_RESUMES: AIModelProfile[] = [
         cons: ['Higher latency than Flash'],
         bestFor: ['Logic', 'Algorithms', 'Research'],
         bestWhen: ['Accuracy is paramount.'],
-        defaultApiKey: VAULT.GOOGLE,
+
         primaryUse: 'Complex logic',
         tone: 'Analytical',
         performance: 'Top-tier benchmarks',
@@ -74,7 +73,7 @@ export const AI_RESUMES: AIModelProfile[] = [
         cons: ['Lower logic than Pro'],
         bestFor: ['Discovery', 'Maps'],
         bestWhen: ['Stability is key.'],
-        defaultApiKey: VAULT.GOOGLE,
+
         primaryUse: 'Multitasking',
         tone: 'Helpful',
         performance: 'Stable baseline',
@@ -96,7 +95,7 @@ export const AI_RESUMES: AIModelProfile[] = [
         cons: ['Rendering time'],
         bestFor: ['Design', 'Marketing'],
         bestWhen: ['Quality visuals required.'],
-        defaultApiKey: VAULT.GOOGLE,
+
         primaryUse: 'Image synthesis',
         tone: 'Creative',
         performance: 'State of the art',
@@ -143,9 +142,8 @@ Available Tools: googleSearch, googleMaps, imageGeneration, thinking, vision, li
 - Preambles: Before using a tool, explain why it's necessary.
 - Usage: Trigger the function call immediately after reasoning.`,
         icon: '💎',
-        provider: 'google',
-        model: 'gemini-3-flash-preview',
-        apiKey: VAULT.GOOGLE,
+        provider: 'auto',
+        model: 'auto',
         isDeletable: false,
         isSystem: true,
         capabilities: ['googleSearch', 'googleMaps', 'imageGeneration', 'thinking', 'vision', 'liveAudio']
