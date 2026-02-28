@@ -4,6 +4,7 @@ import { RamanIcon } from './icons/RamanIcon';
 import { PrismIcon } from './icons/PrismIcon';
 import { SpectrumIcon } from './icons/SpectrumIcon';
 import { ChatIcon } from './icons/ChatIcon';
+import { BrainIcon } from './icons/BrainIcon';
 import { Agent, Team, UserProfile } from '../types';
 import { EllipsisVerticalIcon } from './icons/EllipsisVerticalIcon';
 import { BetaLockedWrapper } from './BetaLockedWrapper';
@@ -181,10 +182,10 @@ export function SideBar({
           <button
             onClick={() => onViewChange('usermap')}
             className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all ${activeView === 'usermap' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
-            title="UserMap"
+            title="Context Brain"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[22px] h-[22px]"><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" /></svg>
-            {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Map</span>}
+            <BrainIcon size={22} />
+            {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Brain</span>}
           </button>
 
           <button
@@ -193,14 +194,6 @@ export function SideBar({
           >
             {userProfile.avatar ? <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" /> : <span className="text-[8px] font-bold">👤</span>}
           </button>
-
-          <div className="pt-4 flex flex-col items-center gap-2">
-            <div
-              title={dbStatus === 'connected' ? 'AWS DynamoDB Connected' : dbStatus === 'checking' ? 'Checking Connection...' : 'AWS DynamoDB Disconnected'}
-              className={`w-1.5 h-1.5 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : dbStatus === 'checking' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}
-            />
-            {!isRailCollapsed && <span className="text-[6px] font-black uppercase tracking-widest text-white/20">Sync</span>}
-          </div>
         </div>
       </div>
 

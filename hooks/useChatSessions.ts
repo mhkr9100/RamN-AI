@@ -3,13 +3,67 @@ import { Message, ChatSession, UserProfile } from '../types';
 import { AGENTS } from '../constants';
 import { dbService, STORES_ENUM } from '../services/db';
 
-const PRISM_INTRO = "Hello. I am Prism, your Meta Agent and Workspace Architect. My mission is to translate your goals into specialized AI architectures. Whether you need a single expert agent or a coordinated team of specialists to handle a complex project, I am here to design and deploy them for you.\n\nHow can I help you build your workspace today? Tell me about a project, a workflow, or a specific problem you're looking to solve.";
+const PRISM_INTRO = `Prism is Active. I am your Meta Agent and Workspace Architect.
+
+**Quick Guide:**
+- **Ask Prism** (Default): Get answers to any general question.
+- **Route**: Find the best AI model for your objective without creating an agent.
+- **Create Agents**: Fabricate specialized units for dedicated tasks.
+- **Chat Interval**: Pace the interaction for multi-step reasoning.
+
+How can I help you build your workspace today? Tell me about a project, a workflow, or a specific problem you're looking to solve.`;
+
+const getAgentIntro = (name: string, role: string) => `**${name}** is Online. I am a specialized unit assigned the role of **${role}**. How can I assist you in my area of expertise today? Use the input bar below to send instructions.`;
+
+const getTeamIntro = (name: string) => `**${name}** Squad is Synchronized. Mention an agent using **@Name** to trigger their specialized expertise. How can the team collaborate on your project today?`;
 
 export const useChatSessions = (currentUser: UserProfile | null) => {
     const [chatHistory, setChatHistory] = useState<{ [key: string]: Message[] }>({});
     const [activeChatId, setActiveChatId] = useState<string>('prism-core');
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+    // Helper to get initial message for a new session
+    const getInitialMessage = useCallback((entityId: string): Message | null => {
+        if (entityId === 'prism-core' || entityId === 'prism-core-member') {
+            return {
+                id: `msg-prism-init-${Date.now()}`,
+                agent: AGENTS.PRISM,
+                content: { type: 'text', text: PRISM_INTRO },
+                type: 'agent'
+            };
+        }
+
+        // Search for agent
+        const agent = Object.values(AGENTS).find(a => a.id === entityId);
+        if (agent && !agent.isSystem) {
+            return {
+                id: `msg-init-${Date.now()}`,
+                agent: agent,
+                content: { type: 'text', text: getAgentIntro(agent.name, agent.role) },
+                type: 'agent'
+            };
+        }
+
+        // For teams or other agents, have a helpful fallback
+        if (entityId.startsWith('agent-') || entityId.indexOf('-') > -1) {
+            return {
+                id: `msg-gen-init-${Date.now()}`,
+                agent: { id: entityId, name: 'Agent', role: 'Specialist', type: 'agent', icon: '🤖' } as any,
+                content: { type: 'text', text: `Welcome to your specialized session. I am your assigned AI unit. How can I assist you with your objective today?` },
+                type: 'agent'
+            };
+        }
+
+        if (entityId.startsWith('session-')) return null;
+
+        return {
+            id: `msg-squad-init-${Date.now()}`,
+            agent: { id: entityId, name: 'Squad', type: 'team', icon: '👥' } as any,
+            content: { type: 'text', text: `This squad is synchronized. Use **@Name** to trigger a specialist's expertise or ask a general question to start the coordination.` },
+            type: 'agent'
+        };
+    }, []);
 
     // Auto-save chat history when it changes
     useEffect(() => {
@@ -51,16 +105,12 @@ export const useChatSessions = (currentUser: UserProfile | null) => {
             setChatSessions([newSession]);
             setActiveSessionId(newSession.id);
             dbService.put(STORES_ENUM.SESSIONS, newSession);
+            const initMsg = getInitialMessage('prism-core');
             setChatHistory({
-                'prism-core': [{
-                    id: `msg-prism-init`,
-                    agent: AGENTS.PRISM,
-                    content: { type: 'text', text: PRISM_INTRO },
-                    type: 'agent'
-                }]
+                'prism-core': initMsg ? [initMsg] : []
             });
         }
-    }, []);
+    }, [getInitialMessage]);
 
     const addMessage = useCallback((chatId: string, message: Message) => {
         setChatHistory(prev => ({ ...prev, [chatId]: [...(prev[chatId] || []), message] }));
@@ -97,8 +147,9 @@ export const useChatSessions = (currentUser: UserProfile | null) => {
         setChatSessions(prev => [...prev, newSession]);
         setActiveSessionId(newSession.id);
         dbService.put(STORES_ENUM.SESSIONS, newSession);
-        setChatHistory(prev => ({ ...prev, [entityId]: [] }));
-    }, [currentUser]);
+        const initMsg = getInitialMessage(entityId);
+        setChatHistory(prev => ({ ...prev, [entityId]: initMsg ? [initMsg] : [] }));
+    }, [currentUser, getInitialMessage]);
 
     const resumeSession = useCallback(async (session: ChatSession) => {
         const chatKey = `chat_${session.id}`;
@@ -138,9 +189,10 @@ export const useChatSessions = (currentUser: UserProfile | null) => {
             setChatSessions(prev => [...prev, newSession]);
             setActiveSessionId(newSession.id);
             dbService.put(STORES_ENUM.SESSIONS, newSession);
-            setChatHistory(prev => ({ ...prev, [entityId]: prev[entityId] || [] }));
+            const initMsg = getInitialMessage(entityId);
+            setChatHistory(prev => ({ ...prev, [entityId]: initMsg ? [initMsg] : [] }));
         }
-    }, [currentUser, chatSessions]);
+    }, [currentUser, chatSessions, getInitialMessage]);
 
     return {
         chatHistory, setChatHistory,
