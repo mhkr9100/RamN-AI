@@ -143,7 +143,7 @@ export const InputBar: React.FC<InputBarProps> = ({
         {filePreview && (
           <div className='relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 mb-4 shadow-xl animate-in zoom-in duration-200'>
             <img src={filePreview} alt="preview" className='w-full h-full object-cover' />
-            <button onClick={() => { setFilePreview(null); setFileData(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className='absolute top-1 right-1 bg-black/80 rounded-full p-1 text-white hover:bg-white hover:text-black transition-all border border-white/5'><XMarkIcon size={12} /></button>
+            <button aria-label="Remove attachment" onClick={() => { setFilePreview(null); setFileData(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className='absolute top-1 right-1 bg-black/80 rounded-full p-1 text-white hover:bg-white hover:text-black transition-all border border-white/5'><XMarkIcon size={12} /></button>
           </div>
         )}
 
@@ -152,7 +152,7 @@ export const InputBar: React.FC<InputBarProps> = ({
             <div className="flex items-center gap-2 uppercase tracking-widest font-bold">
               <span>📎</span> {fileData.mimeType} Data Loaded
             </div>
-            <button onClick={() => { setFileData(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className='text-white/20 hover:text-white'><XMarkIcon size={12} /></button>
+            <button aria-label="Remove attachment" onClick={() => { setFileData(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className='text-white/20 hover:text-white'><XMarkIcon size={12} /></button>
           </div>
         )}
 
@@ -163,6 +163,7 @@ export const InputBar: React.FC<InputBarProps> = ({
             onClick={() => fileInputRef.current?.click()}
             className="p-2.5 rounded-full transition-all duration-200 text-white/40 hover:bg-white/10 hover:text-white"
             title="Upload"
+            aria-label="Upload file"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
           </button>
@@ -180,7 +181,7 @@ export const InputBar: React.FC<InputBarProps> = ({
               rows={1}
             />
 
-            <button type="submit" disabled={(!prompt.trim() && !fileData)} className={`p-2.5 rounded-xl transition-all duration-300 self-end ${(prompt.trim() || fileData) ? 'bg-white text-black shadow-md hover:bg-white/90' : 'bg-transparent text-white/5 cursor-not-allowed'}`}>
+            <button type="submit" aria-label="Send message" disabled={(!prompt.trim() && !fileData)} className={`p-2.5 rounded-xl transition-all duration-300 self-end ${(prompt.trim() || fileData) ? 'bg-white text-black shadow-md hover:bg-white/90' : 'bg-transparent text-white/5 cursor-not-allowed'}`}>
               {isLoading ? <LoadingSpinner width={20} height={10} /> : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" /></svg>}
             </button>
           </form>
