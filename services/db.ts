@@ -1,4 +1,5 @@
 import Dexie, { Table } from 'dexie';
+import { authService } from './auth';
 
 // ==========================================
 // IndexedDB Store Names
@@ -79,9 +80,13 @@ class DBService {
 
             // 2. Async Cloud Sync (Fire and forget if BACKEND_URL exists)
             if (BACKEND_URL && item.userId) {
+                const token = authService.getToken();
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
                 fetch(`${BACKEND_URL}/api/db`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     body: JSON.stringify({ store: storeName, item })
                 }).catch(e => console.error(`[AWS Sync Error] Failed to push to ${storeName}:`, e));
             }
@@ -120,8 +125,13 @@ class DBService {
 
             // 2. Async Cloud Sync
             if (BACKEND_URL && userId) {
+                const token = authService.getToken();
+                const headers: Record<string, string> = {};
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
                 fetch(`${BACKEND_URL}/api/db?store=${storeName}&id=${key}&userId=${userId}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers
                 }).catch(e => console.error(`[AWS Sync Error] Failed to delete from ${storeName}:`, e));
             }
         } catch (error) {
@@ -136,7 +146,13 @@ class DBService {
         if (!BACKEND_URL) return this.getAll<T>(storeName);
 
         try {
-            const res = await fetch(`${BACKEND_URL}/api/db?store=${storeName}&userId=${userId}`);
+            const token = authService.getToken();
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const res = await fetch(`${BACKEND_URL}/api/db?store=${storeName}&userId=${userId}`, {
+                headers
+            });
             if (!res.ok) throw new Error(`Cloud fetch failed: ${res.status}`);
 
             const data = await res.json();
