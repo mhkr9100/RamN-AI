@@ -20,20 +20,29 @@ export const useEntities = (currentUser: UserProfile | null) => {
     }, []);
 
     const recruitAgent = useCallback((data: any) => {
+        // Prevent duplicate recruitment if ID already exists
+        if (data.id) {
+            const existing = agents.find(a => a.id === data.id);
+            if (existing) return existing;
+        }
+
         const newAgent: Agent = {
             ...data,
             id: data.id || `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             type: 'agent',
             userId: currentUser?.id,
-            model: data.modelId || 'gemini-2.5-flash',
+            model: data.modelId || 'gemini-2.0-flash',
             provider: 'google',
             isDeletable: !data.isSystem,
             isSystem: !!data.isSystem
         };
-        setAgents(prev => [...prev, newAgent]);
+        setAgents(prev => {
+            if (prev.find(a => a.id === newAgent.id)) return prev;
+            return [...prev, newAgent];
+        });
         dbService.put(STORES_ENUM.AGENTS, newAgent);
         return newAgent;
-    }, [currentUser]);
+    }, [currentUser, agents]);
 
     const deleteAgent = useCallback((id: string) => {
         setAgents(prev => prev.filter(a => a.id !== id));

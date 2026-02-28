@@ -19,7 +19,7 @@ export const useAgentExecution = (
     const [orchestrationWeights, setOrchestrationWeights] = useState<{ [key: string]: number }>({});
     const [agentModes, setAgentModes] = useState<{ [key: string]: 'CHAT' | 'SOLUTION' | 'TASK' | 'VOID' }>({});
 
-    const handleExpandMessage = async (activeChatId: string, messageId: string) => {
+    const handleExpandMessage = useCallback(async (activeChatId: string, messageId: string) => {
         const history = chatHistory[activeChatId] || [];
         const msgIndex = history.findIndex(m => m.id === messageId);
         if (msgIndex === -1) return;
@@ -48,16 +48,16 @@ export const useAgentExecution = (
             }
             return { ...prev, [activeChatId]: current };
         });
-    };
+    }, [chatHistory, setChatHistory, getUserKeys]);
 
-    const handleExecuteCommand = async (activeChatId: string, messageId: string, toolCall: ToolCall, onCreateTeam: (team: Team) => void, onRecruitAgent: (agent: Agent) => void, setActiveChatId: (id: string) => void) => {
+    const handleExecuteCommand = useCallback(async (activeChatId: string, messageId: string, toolCall: ToolCall, onCreateTeam: (team: Team) => void, onRecruitAgent: (agent: Agent) => void, setActiveChatId: (id: string) => void) => {
         const history = chatHistory[activeChatId] || [];
         const msgIndex = history.findIndex(m => m.id === messageId);
         if (msgIndex === -1) return;
 
         if (toolCall.name === 'fabricateTeam') {
             const squad = toolCall.args.specialists.map((spec: any) => {
-                const newAgent = { ...spec, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: spec.modelId || 'gemini-2.5-flash', provider: 'google', isDeletable: true, isSystem: false };
+                const newAgent = { ...spec, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: spec.modelId || 'gemini-2.0-flash', provider: 'google', isDeletable: true, isSystem: false };
                 onRecruitAgent(newAgent);
                 return newAgent;
             });
@@ -96,7 +96,7 @@ export const useAgentExecution = (
         }
 
         if (toolCall.name === 'fabricateAgent') {
-            const agentParam = { ...toolCall.args, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: toolCall.args.modelId || 'gemini-2.5-flash', provider: 'google', isDeletable: true, isSystem: false };
+            const agentParam = { ...toolCall.args, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: toolCall.args.modelId || 'gemini-2.0-flash', provider: 'google', isDeletable: true, isSystem: false };
             onRecruitAgent(agentParam);
             const updatedHistory = [...history];
             updatedHistory[msgIndex] = {
@@ -146,7 +146,7 @@ export const useAgentExecution = (
                 setChatHistory(prev => ({ ...prev, [activeChatId]: finalHistory }));
             }
         }
-    };
+    }, [chatHistory, setChatHistory, currentUser, getUserKeys, addMessage]);
 
     return {
         isProcessing, setActiveRequests,

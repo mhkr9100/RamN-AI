@@ -50,18 +50,20 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       )}
 
       <div className="mx-auto max-w-2xl lg:max-w-[48rem] xl:max-w-4xl space-y-6 px-4 py-8 relative z-10">
-        {messages.map((msg) => (
-          <Message
-            key={msg.id}
-            message={msg}
-            onAddEmployee={onAddEmployee}
-            onCreateGroup={onCreateGroup}
-            onConfigureNewAgent={onConfigureNewAgent}
-            onDeployCustomGroup={onDeployCustomGroup}
-            onExecuteCommand={onExecuteCommand}
-            onExpandMessage={onExpandMessage}
-          />
-        ))}
+        {React.useMemo(() => (
+          messages.map((msg) => (
+            <Message
+              key={msg.id}
+              message={msg}
+              onAddEmployee={onAddEmployee}
+              onCreateGroup={onCreateGroup}
+              onConfigureNewAgent={onConfigureNewAgent}
+              onDeployCustomGroup={onDeployCustomGroup}
+              onExecuteCommand={onExecuteCommand}
+              onExpandMessage={onExpandMessage}
+            />
+          ))
+        ), [messages, onAddEmployee, onCreateGroup, onConfigureNewAgent, onDeployCustomGroup, onExecuteCommand, onExpandMessage])}
 
         {/* Simultaneous Typing Indicators */}
         {isLoading && activeTypers.map((typerState, idx) => {

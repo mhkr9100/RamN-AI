@@ -9,10 +9,10 @@ import { canMakeRequest, recordRequest } from "./rateLimiter";
  * Picks the fastest/smallest model from the available provider.
  */
 export function resolvePrismModel(userKeys?: { openAiKey?: string; anthropicKey?: string; geminiKey?: string }): { model: string; provider: 'google' | 'openai' | 'anthropic' | 'auto' } {
-    if (userKeys?.geminiKey) return { model: 'gemini-2.5-flash', provider: 'google' };
+    if (userKeys?.geminiKey) return { model: 'gemini-2.0-flash', provider: 'google' };
     if (userKeys?.openAiKey) return { model: 'gpt-4o-mini', provider: 'openai' };
     if (userKeys?.anthropicKey) return { model: 'claude-3-5-haiku-latest', provider: 'anthropic' };
-    return { model: 'gemini-2.5-flash', provider: 'google' }; // fallback
+    return { model: 'gemini-2.0-flash', provider: 'google' }; // fallback
 }
 
 /**
@@ -97,12 +97,15 @@ export async function hybridGenerateContent(
                 const apiKey = userKeys?.geminiKey;
                 if (!apiKey) throw new Error('Gemini API key required. Add it in User Profile → API Keys.');
 
-                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${apiKey}`;
+                const modelPath = params.model.startsWith('models/') ? params.model : `models/${params.model}`;
+                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${apiKey}`;
                 const payload: any = {
                     contents: params.contents,
                     systemInstruction: params.config?.systemInstruction ? { parts: [{ text: params.config.systemInstruction }] } : undefined,
                     tools: params.config?.tools,
-                    generationConfig: params.config?.thinkingConfig ? { thinkingConfig: params.config.thinkingConfig } : undefined
+                    generationConfig: {
+                        ...(params.config?.thinkingConfig ? { thinkingConfig: params.config.thinkingConfig } : {})
+                    }
                 };
 
                 const response = await fetch(targetUrl, {
@@ -540,7 +543,7 @@ async function executeToolBackend(toolCall: any, userKeys?: { openAiKey?: string
         // Google Search grounding only works with Gemini models
         if (userKeys?.geminiKey) {
             const res = await hybridGenerateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.0-flash',
                 contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
                 config: { tools: [{ googleSearch: {} }] }
             }, userKeys);
@@ -557,7 +560,7 @@ export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall
             // GEMINI — native image generation
             if (userKeys?.geminiKey) {
                 const response = await hybridGenerateContent({
-                    model: 'gemini-3-pro-image-preview',
+                    model: 'gemini-2.0-flash', // Imagen is often part of the multimodal model now or use specific 1.5/2.0
                     contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
                 }, userKeys);
                 const part = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);

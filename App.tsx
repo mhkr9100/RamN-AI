@@ -48,6 +48,60 @@ const App: React.FC = () => {
     } catch { return true; }
   });
 
+  const handleHireFromSpectrum = useCallback((p: any) => {
+    if ('modelId' in p) {
+      setCreateModalInitialValues({ profileId: p.id, role: p.tags[0], jd: p.summary, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
+    } else {
+      setCreateModalInitialValues({ profileId: p.defaultModelId, role: p.role, jd: p.jobDescription, name: p.name, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
+    }
+    setCreateModalType('agent');
+  }, []);
+
+  const handleInjectSystemMessage = useCallback((text: string) => {
+    const sysMsg: Message = {
+      id: `sys-${Date.now()}`,
+      agent: AGENTS.PRISM,
+      type: 'agent',
+      content: { type: 'text', text: `[SYSTEM_SIGNAL]: ${text}` }
+    };
+    setChatHistory(prev => ({
+      ...prev,
+      [activeChatId]: [...(prev[activeChatId] || []), sysMsg]
+    }));
+  }, [activeChatId, setChatHistory]);
+
+  const handleCreateTeam = useCallback((data: any) => createTeam({ ...data, type: 'rouge' }), [createTeam]);
+  const handleResumeSession = useCallback((sessionId: string) => {
+    const s = chatSessions.find(x => x.id === sessionId);
+    if (s) resumeSession(s);
+  }, [chatSessions, resumeSession]);
+  const handleStartNewSession = useCallback(() => startNewSession(activeChatId), [startNewSession, activeChatId]);
+
+  const handleCreateEmployee = useCallback((data: any) => {
+    const newAgent = recruitAgent(data);
+    if (newAgent) {
+      setActiveChatId(newAgent.id);
+      setActiveView('chats');
+    }
+  }, [recruitAgent, setActiveChatId, setActiveView]);
+
+  const handleCloseCreateModal = useCallback(() => { setCreateModalType(null); setCreateModalInitialValues(undefined); }, []);
+
+  const handleOpenProfile = useCallback(() => setIsUserProfileOpen(true), []);
+  const handleCloseUserProfile = useCallback(() => setIsUserProfileOpen(false), []);
+  const handleFabricateAgent = useCallback(() => setCreateModalType('agent'), []);
+  const handleInitializeGroup = useCallback(() => setCreateModalType('project'), []);
+  const handleOpenChat = useCallback((id: string) => { setActiveChatId(id); setActiveView('chats'); }, [setActiveChatId, setActiveView]);
+  const handleViewChange = useCallback((view: any) => {
+    setActiveView(view);
+    if (view === 'prism') setActiveChatId('prism-core');
+  }, [setActiveChatId, setActiveView]);
+
+  const handleUpdateUserProfile = useCallback((p: Partial<UserProfile>) => setUserProfile({ ...userProfile, ...p }), [userProfile, setUserProfile]);
+  const handleCloseProfileSidebar = useCallback(() => setIsProfileSidebarOpen(false), []);
+  const handleSaveAgent = useCallback((u: Agent) => setAgents(prev => prev.map(e => e.id === u.id ? u : e)), [setAgents]);
+  const handleSaveTeam = useCallback((u: any) => setTeams(prev => prev.map(g => g.id === u.id ? u : g)), [setTeams]);
+
   if (isInitializing) {
     return (
       <div className="h-screen w-screen bg-[#1A1A1A] flex items-center justify-center">
@@ -66,38 +120,16 @@ const App: React.FC = () => {
   const activeAgent = agents.find(e => e.id === activeChatId);
   const isPrism = activeChatId === 'prism-core';
 
-  const handleHireFromSpectrum = (p: any) => {
-    if ('modelId' in p) {
-      setCreateModalInitialValues({ profileId: p.id, role: p.tags[0], jd: p.summary, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
-    } else {
-      setCreateModalInitialValues({ profileId: p.defaultModelId, role: p.role, jd: p.jobDescription, name: p.name, isLiveSpaceEnabled: p.isLiveSpaceEnabled });
-    }
-    setCreateModalType('agent');
-  };
-
-  const handleInjectSystemMessage = (text: string) => {
-    const sysMsg: Message = {
-      id: `sys-${Date.now()}`,
-      agent: AGENTS.PRISM,
-      type: 'agent',
-      content: { type: 'text', text: `[SYSTEM_SIGNAL]: ${text}` }
-    };
-    setChatHistory(prev => ({
-      ...prev,
-      [activeChatId]: [...(prev[activeChatId] || []), sysMsg]
-    }));
-  };
-
   const profileData = isPrism ? { type: 'prism' as const, data: AGENTS.PRISM } : (activeTeam ? { type: 'team' as const, data: activeTeam } : (activeAgent ? { type: 'agent' as const, data: activeAgent } : null));
 
   const renderContent = () => {
     switch (activeView) {
       case 'home':
-        return <HomeView onStartChat={() => { setActiveView('prism'); setActiveChatId('prism-core'); }} onOpenProfile={() => setIsUserProfileOpen(true)} />;
+        return <HomeView onStartChat={() => { setActiveView('prism'); setActiveChatId('prism-core'); }} onOpenProfile={handleOpenProfile} />;
       case 'spectrum':
-        return <SpectrumView onHire={handleHireFromSpectrum} onFabricateAgent={() => setCreateModalType('agent')} onInitializeGroup={() => setCreateModalType('project')} onOpenChat={(id) => { setActiveChatId(id); setActiveView('chats'); }} agents={agents} teams={teams} userProfile={userProfile} />;
+        return <SpectrumView onHire={handleHireFromSpectrum} onFabricateAgent={handleFabricateAgent} onInitializeGroup={handleInitializeGroup} onOpenChat={handleOpenChat} agents={agents} teams={teams} userProfile={userProfile} />;
       case 'usermap':
-        return <UserMapView tree={userMapTree} isConsolidating={isConsolidating} onUpdateNode={updateNode} onDeleteNode={deleteNode} onAddNode={addNode} onConsolidate={consolidate} onOpenProfile={() => setIsUserProfileOpen(true)} />;
+        return <UserMapView tree={userMapTree} isConsolidating={isConsolidating} onUpdateNode={updateNode} onDeleteNode={deleteNode} onAddNode={addNode} onConsolidate={consolidate} onOpenProfile={handleOpenProfile} />;
 
       default:
         // Automatically deselect Prism if we are supposed to be in 'chats' view and Prism is still active
@@ -137,7 +169,8 @@ const App: React.FC = () => {
                 <ChatView
                   messages={chatHistory[activeChatId] || []} isLoading={isProcessing} typingAgent={typingAgent} typingAgents={typingAgents as any}
                   onSubmit={handleSendMessage}
-                  onAddAgent={recruitAgent} onCreateTeam={(data) => createTeam({ ...data, type: 'rouge' })}
+                  onAddAgent={recruitAgent}
+                  onCreateTeam={handleCreateTeam}
                   onExecuteCommand={handleExecuteCommand}
                   onExpandMessage={handleExpandMessage}
                   onSaveToTasks={handleAddGlobalTask}
@@ -148,17 +181,17 @@ const App: React.FC = () => {
                   activeTeam={activeTeam}
                   sessions={getSessionsForEntity(activeChatId)}
                   activeSessionId={activeSessionId || ''}
-                  onResumeSession={(sessionId) => { const s = chatSessions.find(x => x.id === sessionId); if (s) resumeSession(s); }}
-                  onStartNewSession={() => startNewSession(activeChatId)}
+                  onResumeSession={handleResumeSession}
+                  onStartNewSession={handleStartNewSession}
                 />
               </div>
             </div>
             {profileData && (
               <ProfileSidebar
                 isOpen={isProfileSidebarOpen} type={profileData.type} data={profileData.data as any} globalTasks={[]}
-                onUpdateUserProfile={(p) => setUserProfile({ ...userProfile, ...p })}
+                onUpdateUserProfile={handleUpdateUserProfile}
                 userProfile={userProfile}
-                onClose={() => setIsProfileSidebarOpen(false)} onSaveAgent={(u) => setAgents(prev => prev.map(e => e.id === u.id ? u : e))} onSaveTeam={(u) => setTeams(prev => prev.map(g => g.id === u.id ? u : g))}
+                onClose={handleCloseProfileSidebar} onSaveAgent={handleSaveAgent} onSaveTeam={handleSaveTeam}
               />
             )}
           </div>
@@ -170,15 +203,12 @@ const App: React.FC = () => {
     <div className="flex h-screen overflow-hidden bg-[#1A1A1A] text-white font-sans selection:bg-white/10">
       <SideBar
         activeView={activeView}
-        onViewChange={(view) => {
-          setActiveView(view);
-          if (view === 'prism') setActiveChatId('prism-core');
-        }}
-        onOpenProfile={() => setIsUserProfileOpen(true)}
+        onViewChange={handleViewChange}
+        onOpenProfile={handleOpenProfile}
         agents={agents}
         teams={teams}
         activeChatId={activeChatId}
-        onSelectChat={(id) => { setActiveChatId(id); setActiveView('chats'); }}
+        onSelectChat={handleOpenChat}
         onDeleteTeam={deleteTeam}
         onDeleteAgent={deleteAgent}
         userProfile={userProfile}
@@ -200,7 +230,15 @@ const App: React.FC = () => {
       </main>
 
       {createModalType && (
-        <CreateEntityModal isOpen={!!createModalType} type={createModalType === 'agent' ? 'employee' : 'project'} employees={agents} initialValues={createModalInitialValues} onClose={() => { setCreateModalType(null); setCreateModalInitialValues(undefined); }} onCreateEmployee={recruitAgent} onCreateGroup={createTeam} />
+        <CreateEntityModal
+          isOpen={!!createModalType}
+          type={createModalType === 'agent' ? 'employee' : 'project'}
+          employees={agents}
+          initialValues={createModalInitialValues}
+          onClose={handleCloseCreateModal}
+          onCreateEmployee={handleCreateEmployee}
+          onCreateGroup={createTeam}
+        />
       )}
 
       {isUserProfileOpen && (
