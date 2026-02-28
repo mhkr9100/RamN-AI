@@ -1,6 +1,6 @@
 /**
- * PageIndex Service — Structures raw Mem0 memories into a hierarchical JSON tree.
- * Uses an LLM to consolidate flat facts into a browsable UserMap.
+ * PageIndex Service — Structures raw memories into a hierarchical JSON tree.
+ * Uses the user's AI provider (via hybridGenerateContent) to consolidate facts.
  */
 
 export interface PageNode {
@@ -37,9 +37,10 @@ RULES:
 export class PageIndexService {
     /**
      * Takes raw memories (flat strings) and structures them into a PageNode tree.
-     * Uses the Gemini API via the local proxy to do the structuring.
+     * Uses hybridGenerateContent directly (no server proxy needed).
      */
-    async consolidate(memories: string[], existingTree?: PageNode): Promise<PageNode> {
+    async consolidate(memories: string[], existingTree?: PageNode, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<PageNode> {
+        const { hybridGenerateContent, resolvePrismModel } = await import('./aiService');
         const memoryList = memories.map((m, i) => `${i + 1}. ${m}`).join('\n');
 
         let prompt = `Here are the user's raw memory facts:\n\n${memoryList}`;
@@ -50,29 +51,14 @@ export class PageIndexService {
             prompt += `\n\nCreate a new UserMap tree from these facts.`;
         }
 
-        // Call through the local proxy (using Gemini by default for structuring)
-        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
-        const res = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : ''
-            },
-            body: JSON.stringify({
-                model: 'gemini-2.0-flash',
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                config: { systemInstruction: STRUCTURING_PROMPT }
-            })
-        });
+        const { model } = resolvePrismModel(userKeys);
+        const res = await hybridGenerateContent({
+            model,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { systemInstruction: STRUCTURING_PROMPT }
+        }, userKeys);
 
-        if (!res.ok) {
-            throw new Error(`Structuring failed: ${res.status}`);
-        }
-
-        const data = await res.json();
-        const text = data.text || '';
-
-        // Extract JSON from response
+        const text = res.text || '';
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
             throw new Error('Failed to parse structured tree from LLM response');

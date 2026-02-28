@@ -28,7 +28,7 @@ function detectProvider(model: string): string {
 /**
  * DIRECT API CALL — No proxy. Calls Google/OpenAI/Anthropic directly from the browser.
  */
-async function hybridGenerateContent(params: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }, maxRetries = 3): Promise<GenerateContentResponse | any> {
+export async function hybridGenerateContent(params: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }, maxRetries = 3): Promise<GenerateContentResponse | any> {
     const provider = detectProvider(params.model);
     let lastError: any;
 
@@ -340,7 +340,14 @@ export async function generateSingleAgentResponse(
     }
 
     try {
-        const contents = history.map(msg => ({
+        // Truncate chat history to prevent context window overflow
+        const MAX_HISTORY = 40;
+        const truncatedHistory = history.length > MAX_HISTORY ? history.slice(-MAX_HISTORY) : history;
+        if (history.length > MAX_HISTORY) {
+            console.warn(`Chat truncated: ${history.length} → ${MAX_HISTORY} messages`);
+        }
+
+        const contents = truncatedHistory.map(msg => ({
             role: msg.type === 'user' ? 'user' : 'model',
             parts: msg.content.type === 'text' ? [{ text: msg.content.text }] : [{ text: (msg.content as any).text || "" }]
         }));

@@ -15,6 +15,7 @@ import { useUserMap } from './hooks/useUserMap';
 import { Agent, GlobalTask, Message, UserProfile } from './types';
 import { AGENTS } from './constants';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { OnboardingModal } from './components/OnboardingModal';
 
 const App: React.FC = () => {
   const {
@@ -33,6 +34,19 @@ const App: React.FC = () => {
 
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isProfileSidebarOpen, setIsProfileSidebarOpen] = useState(false);
+
+  // Show onboarding for first-time users (no API keys set)
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof localStorage === 'undefined') return false;
+    const done = localStorage.getItem('onboarding_done');
+    if (done) return false;
+    const profile = localStorage.getItem('user_profile');
+    if (!profile) return true;
+    try {
+      const p = JSON.parse(profile);
+      return !p.geminiKey && !p.openAiKey && !p.anthropicKey;
+    } catch { return true; }
+  });
 
   if (isInitializing) {
     return (
@@ -214,6 +228,12 @@ const App: React.FC = () => {
       {isUserProfileOpen && (
         <UserProfileModal user={userProfile} isOpen={isUserProfileOpen} onClose={() => setIsUserProfileOpen(false)} onSave={setUserProfile} onLogout={logout} />
       )}
+
+      <OnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => { setShowOnboarding(false); localStorage.setItem('onboarding_done', 'true'); }}
+        onOpenProfile={() => setIsUserProfileOpen(true)}
+      />
     </div>
   );
 };

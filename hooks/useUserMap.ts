@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserProfile } from '../types';
 import { dbService, STORES_ENUM } from '../services/db';
-import { authService } from '../services/auth';
 
 export interface PageNode {
     id: string;
@@ -77,56 +76,62 @@ export const useUserMap = (currentUser: UserProfile | null) => {
         saveTree(updated);
     }, [userMapTree, saveTree]);
 
-    // Consolidate: call server to pull memories and structure into tree
-    const consolidate = useCallback(async () => {
+    // Consolidate: pull chat memories from IndexedDB, structure into tree client-side
+    const consolidate = useCallback(async (userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }) => {
         if (!currentUser) {
             throw new Error('Not logged in.');
         }
         setIsConsolidating(true);
         try {
-            const token = authService.getToken();
-            const res = await fetch('/api/usermap/consolidate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({
-                    userId: currentUser.id
-                })
-            });
+            // Get all stored memories from IndexedDB
+            const stored = await dbService.getAll<{ id: string; content: string }>(STORES_ENUM.MEMORIES);
+            const memoryStrings = stored.map(m => m.content || m.id).filter(Boolean);
 
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || `Consolidation failed: ${res.status}`);
+            if (memoryStrings.length === 0) {
+                throw new Error('No memories to consolidate. Chat with agents first to build your memory.');
             }
 
-            const data = await res.json();
-            if (data.tree) {
-                await saveTree(data.tree);
-            }
+            // Use pageIndexService to structure into tree
+            const { pageIndexService } = await import('../services/pageIndexService');
+            const tree = await pageIndexService.consolidate(memoryStrings, userMapTree.children.length > 0 ? userMapTree : undefined, userKeys);
+            await saveTree(tree);
         } finally {
             setIsConsolidating(false);
         }
-    }, [currentUser, saveTree]);
+    }, [currentUser, userMapTree, saveTree]);
 
-    // Ingest current chat session into memory
-    const ingestSession = useCallback(async (messages: Array<{ role: string; content: string }>, agentId?: string) => {
+    // Ingest current chat session into memory — extract facts client-side, store in IndexedDB
+    const ingestSession = useCallback(async (messages: Array<{ role: string; content: string }>, agentId?: string, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }) => {
         if (!currentUser) return;
+        if (messages.length < 2) return; // Need at least a user+agent exchange
         try {
-            const token = authService.getToken();
-            await fetch('/api/memory/ingest', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': token ? `Bearer ${token}` : ''
-                },
-                body: JSON.stringify({
-                    messages,
-                    userId: currentUser.id,
-                    agentId
-                })
-            });
+            const { hybridGenerateContent, resolvePrismModel } = await import('../services/aiService');
+            const { model } = resolvePrismModel(userKeys);
+
+            const chatText = messages.map(m => `${m.role}: ${m.content}`).join('\n');
+            const res = await hybridGenerateContent({
+                model,
+                contents: [{ role: 'user', parts: [{ text: chatText }] }],
+                config: {
+                    systemInstruction: `Extract key facts about the user from this conversation. Return a JSON array of short fact strings. Example: ["User works on a startup called RamN AI", "User prefers React over Vue"]. Extract ONLY user-specific facts. Output ONLY the JSON array.`
+                }
+            }, userKeys);
+
+            const text = res.text || '';
+            const match = text.match(/\[[\s\S]*\]/);
+            if (match) {
+                const facts: string[] = JSON.parse(match[0]);
+                const timestamp = Date.now();
+                for (const fact of facts) {
+                    await dbService.put(STORES_ENUM.MEMORIES, {
+                        id: `mem_${timestamp}_${Math.random().toString(36).slice(2, 8)}`,
+                        userId: currentUser.id,
+                        agentId,
+                        content: fact,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            }
         } catch (e) {
             console.error('Memory ingestion failed:', e);
         }

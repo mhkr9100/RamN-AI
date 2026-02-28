@@ -10,7 +10,8 @@ export const STORES_ENUM = {
     TASKS: 'tasks',
     FEEDBACK: 'feedback',
     SESSIONS: 'sessions',
-    USERMAP: 'usermap'
+    USERMAP: 'usermap',
+    MEMORIES: 'memories'
 } as const;
 
 type StoreName = typeof STORES_ENUM[keyof typeof STORES_ENUM];
@@ -26,6 +27,7 @@ class RamNDatabase extends Dexie {
     feedback!: Table<any, string>;
     sessions!: Table<any, string>;
     usermap!: Table<any, string>;
+    memories!: Table<any, string>;
 
     constructor() {
         super('RamN_AI');
@@ -37,6 +39,16 @@ class RamNDatabase extends Dexie {
             feedback: 'id',
             sessions: 'id, entityId, userId',
             usermap: 'id'
+        });
+        this.version(2).stores({
+            agents: 'id, userId',
+            groups: 'id, userId',
+            chats: 'id',
+            tasks: 'id, agentId, status',
+            feedback: 'id',
+            sessions: 'id, entityId, userId',
+            usermap: 'id',
+            memories: 'id, userId, agentId, createdAt'
         });
     }
 }
