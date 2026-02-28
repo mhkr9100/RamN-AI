@@ -15,11 +15,11 @@ export const VAULT = {
 
 export const AI_RESUMES: AIModelProfile[] = [
     {
-        id: 'gemini-3-flash',
-        name: 'Gemini 3 Flash',
-        version: 'Preview',
+        id: 'gemini-2.5-flash',
+        name: 'Gemini 2.5 Flash',
+        version: 'Stable',
         provider: 'google',
-        modelId: 'gemini-3-flash-preview',
+        modelId: 'gemini-2.5-flash',
         icon: '⚡',
         tagline: 'High Speed Intelligence',
         tags: ['Fast', 'Efficient'],
@@ -37,11 +37,11 @@ export const AI_RESUMES: AIModelProfile[] = [
         supportedCapabilities: ['googleSearch', 'transcription', 'vision']
     },
     {
-        id: 'gemini-3-pro',
-        name: 'Gemini 3 Pro',
-        version: 'Preview',
+        id: 'gemini-2.5-pro',
+        name: 'Gemini 2.5 Pro',
+        version: 'Stable',
         provider: 'google',
-        modelId: 'gemini-3-pro-preview',
+        modelId: 'gemini-2.5-pro',
         icon: '🧠',
         tagline: 'Deep Reasoning Engine',
         tags: ['Reasoning', 'Complex'],
@@ -81,11 +81,11 @@ export const AI_RESUMES: AIModelProfile[] = [
         supportedCapabilities: ['googleSearch', 'googleMaps', 'vision']
     },
     {
-        id: 'gemini-3-pro-image',
-        name: 'Gemini 3 Pro Image',
-        version: 'Preview',
+        id: 'gemini-1.5-flash-8b',
+        name: 'Gemini 1.5 Flash 8B',
+        version: 'Stable',
         provider: 'google',
-        modelId: 'gemini-3-pro-image-preview',
+        modelId: 'gemini-1.5-flash-8b',
         icon: '🎨',
         tagline: 'Visual Synthesis Engine',
         tags: ['Creative', 'Visuals'],
@@ -134,8 +134,9 @@ You are the primary interface for workspace creation. You manage individual Agen
 [PRISM ORCHESTRATION PROTOCOL]
 - MISSION: Translate human intent into specialized AI architectures.
 - AGENT FABRICATION RULE: Strictly follow the 5-section format.
-- IMPORTANT: You suggest models (like 'Gemini 3 Pro'), but user ultimately selects the layer from their available stack.
+- IMPORTANT: You suggest models (like 'Gemini 2.5 Pro'), but user ultimately selects the layer from their available stack.
 - Always explain WHY you are suggesting a specific specialist in text before triggering the fabrication.
+- CRITICAL PRIVACY RULE: NEVER output the comprehensive "jobDescription" or the 5-section prompt format into your text response. ONLY pass the comprehensive prompt via the 'fabricateAgent' or 'fabricateTeam' tool call arguments. Your conversational text must only contain a brief 1-2 sentence summary of the agent's purpose, keeping the raw instructions completely hidden from the user interface.
 
 [TOOLS_PROTOCOL]
 Available Tools: googleSearch, googleMaps, imageGeneration, thinking, vision, liveAudio, fabricateAgent, fabricateTeam.

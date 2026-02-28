@@ -71,7 +71,7 @@ export const useScatter = () => {
         const userKeys = getUserKeys();
         const response = await generateSingleAgentResponse(
             [{ id: 'task-trigger', agent: { ...AGENTS.PRISM, name: currentUser?.name || 'User', type: 'user' } as Agent, content: { type: 'text', text: task.label }, type: 'user' }],
-            agent, [], [], 'SOLUTION', userKeys
+            agent, [], [], 'SOLUTION', userKeys, currentUser?.id
         );
         return response && response.type === 'text' ? response.text : undefined;
     }, [agents, currentUser, getUserKeys]);
@@ -152,7 +152,7 @@ export const useScatter = () => {
                             addMessage(chatId, { id: `msg-${Date.now()}-${targetAgent.id}`, userId: currentUser.id, agent: targetAgent, content: { type: 'text', text: "⚠️ **API Key Required**: Please add your API key in your User Profile." }, type: 'agent' });
                             return;
                         }
-                        const response = await generateSingleAgentResponse(currentSnapshot, targetAgent, team.agents, [], 'CHAT', userKeys);
+                        const response = await generateSingleAgentResponse(currentSnapshot, targetAgent, team.agents, [], 'CHAT', userKeys, currentUser?.id);
                         if (response) addMessage(chatId, { id: `msg-${Date.now()}-${targetAgent.id}`, userId: currentUser.id, agent: targetAgent, content: response, type: 'agent' });
                     }));
                 } else {
@@ -162,7 +162,7 @@ export const useScatter = () => {
                     if (userKeys.openAiKey) availableProviders += "OpenAI, ";
                     if (userKeys.anthropicKey) availableProviders += "Anthropic, ";
                     if (userKeys.geminiKey) availableProviders += "Gemini.";
-                    const response = await generatePrismResponse(currentSnapshot, AGENTS.PRISM, setPrismStatus, userKeys, availableProviders);
+                    const response = await generatePrismResponse(currentSnapshot, AGENTS.PRISM, setPrismStatus, userKeys, availableProviders, currentUser?.id);
                     if (response) addMessage(chatId, { id: `msg-${Date.now()}`, userId: currentUser.id, agent: AGENTS.PRISM, content: response, type: 'agent' });
                 }
             } else if (agent || chatId === 'prism-core') {
@@ -182,9 +182,9 @@ export const useScatter = () => {
                     if (userKeys.openAiKey) availableProviders += "OpenAI, ";
                     if (userKeys.anthropicKey) availableProviders += "Anthropic, ";
                     if (userKeys.geminiKey) availableProviders += "Gemini.";
-                    response = await generatePrismResponse(currentSnapshot, target, setPrismStatus, userKeys, availableProviders);
+                    response = await generatePrismResponse(currentSnapshot, target, setPrismStatus, userKeys, availableProviders, currentUser?.id);
                 } else {
-                    response = await generateSingleAgentResponse(currentSnapshot, target, [], [], 'CHAT', userKeys);
+                    response = await generateSingleAgentResponse(currentSnapshot, target, [], [], 'CHAT', userKeys, currentUser?.id);
                 }
 
                 if (response) addMessage(chatId, { id: `msg-${Date.now()}`, userId: currentUser.id, agent: target, content: response, type: 'agent' });

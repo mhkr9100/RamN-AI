@@ -95,9 +95,9 @@ const App: React.FC = () => {
       case 'home':
         return <HomeView onStartChat={() => { setActiveView('prism'); setActiveChatId('prism-core'); }} onOpenProfile={() => setIsUserProfileOpen(true)} />;
       case 'spectrum':
-        return <SpectrumView onHire={handleHireFromSpectrum} onFabricateAgent={() => setCreateModalType('agent')} onInitializeGroup={() => setCreateModalType('project')} agents={agents} teams={teams} userProfile={userProfile} />;
+        return <SpectrumView onHire={handleHireFromSpectrum} onFabricateAgent={() => setCreateModalType('agent')} onInitializeGroup={() => setCreateModalType('project')} onOpenChat={(id) => { setActiveChatId(id); setActiveView('chats'); }} agents={agents} teams={teams} userProfile={userProfile} />;
       case 'usermap':
-        return <UserMapView tree={userMapTree} isConsolidating={isConsolidating} onUpdateNode={updateNode} onDeleteNode={deleteNode} onAddNode={addNode} onConsolidate={consolidate} />;
+        return <UserMapView tree={userMapTree} isConsolidating={isConsolidating} onUpdateNode={updateNode} onDeleteNode={deleteNode} onAddNode={addNode} onConsolidate={consolidate} onOpenProfile={() => setIsUserProfileOpen(true)} />;
 
       default:
         // Automatically deselect Prism if we are supposed to be in 'chats' view and Prism is still active
@@ -127,32 +127,6 @@ const App: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Session Controls */}
-                  <div className="flex items-center gap-1">
-                    {getSessionsForEntity(activeChatId).length > 1 && (
-                      <select
-                        value={activeSessionId || ''}
-                        onChange={(e) => {
-                          const session = chatSessions.find(s => s.id === e.target.value);
-                          if (session) resumeSession(session);
-                        }}
-                        className="bg-transparent border border-white/10 rounded-lg px-2 py-1.5 text-[9px] font-bold text-white/60 uppercase tracking-wider outline-none cursor-pointer hover:border-white/20 transition-all appearance-none"
-                      >
-                        {getSessionsForEntity(activeChatId).map((s, i) => (
-                          <option key={s.id} value={s.id} className="bg-[#1A1A1A] text-white">
-                            {s.title === 'New Chat' ? `Session ${getSessionsForEntity(activeChatId).length - i}` : s.title} — {new Date(s.updatedAt).toLocaleDateString()}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <button
-                      onClick={() => startNewSession(activeChatId)}
-                      title="Start new chat interval"
-                      className="p-1.5 rounded-lg border border-white/10 text-white/30 hover:text-white hover:border-white/30 hover:bg-white/5 transition-all"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    </button>
-                  </div>
                   <button onClick={() => setIsProfileSidebarOpen(!isProfileSidebarOpen)} className={`p-2 rounded-lg border transition-all ${isProfileSidebarOpen ? 'bg-white border-white text-black' : 'text-white/40 border-white/10 hover:bg-white/5'}`}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 1 1.063.852l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
                   </button>
@@ -172,6 +146,10 @@ const App: React.FC = () => {
                   activeChatId={activeChatId}
                   activeAgent={activeAgent}
                   activeTeam={activeTeam}
+                  sessions={getSessionsForEntity(activeChatId)}
+                  activeSessionId={activeSessionId || ''}
+                  onResumeSession={(sessionId) => { const s = chatSessions.find(x => x.id === sessionId); if (s) resumeSession(s); }}
+                  onStartNewSession={() => startNewSession(activeChatId)}
                 />
               </div>
             </div>

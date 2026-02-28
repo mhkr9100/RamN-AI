@@ -122,7 +122,7 @@ export const useChatSessions = (currentUser: UserProfile | null) => {
         if (activeSession) {
             const chatKey = `chat_${activeSession.id}`;
             const msgs = await dbService.get<Message[]>(STORES_ENUM.CHATS, chatKey) || [];
-            setChatHistory(prev => ({ ...prev, [entityId]: msgs }));
+            setChatHistory(prev => ({ ...prev, [entityId]: prev[entityId]?.length ? prev[entityId] : msgs }));
             setActiveSessionId(activeSession.id);
         } else {
             const newSession: ChatSession = {
@@ -138,7 +138,7 @@ export const useChatSessions = (currentUser: UserProfile | null) => {
             setChatSessions(prev => [...prev, newSession]);
             setActiveSessionId(newSession.id);
             dbService.put(STORES_ENUM.SESSIONS, newSession);
-            setChatHistory(prev => ({ ...prev, [entityId]: [] }));
+            setChatHistory(prev => ({ ...prev, [entityId]: prev[entityId] || [] }));
         }
     }, [currentUser, chatSessions]);
 

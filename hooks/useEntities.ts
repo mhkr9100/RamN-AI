@@ -22,10 +22,10 @@ export const useEntities = (currentUser: UserProfile | null) => {
     const recruitAgent = useCallback((data: any) => {
         const newAgent: Agent = {
             ...data,
-            id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            id: data.id || `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             type: 'agent',
             userId: currentUser?.id,
-            model: data.modelId || 'gemini-3-flash-preview',
+            model: data.modelId || 'gemini-2.5-flash',
             provider: 'google',
             isDeletable: !data.isSystem,
             isSystem: !!data.isSystem

@@ -20,7 +20,7 @@ function detectProvider(model: string): string {
 
 describe('Provider Detection', () => {
     it('detects Google Gemini models', () => {
-        expect(detectProvider('gemini-3-flash-preview')).toBe('google');
+        expect(detectProvider('gemini-2.5-flash')).toBe('google');
         expect(detectProvider('gemini-3-pro')).toBe('google');
         expect(detectProvider('gemini-1.5-flash-8b')).toBe('google');
         expect(detectProvider('learnlm-1.5-pro-experimental')).toBe('google');

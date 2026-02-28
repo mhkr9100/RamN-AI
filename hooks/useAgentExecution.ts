@@ -57,7 +57,7 @@ export const useAgentExecution = (
 
         if (toolCall.name === 'fabricateTeam') {
             const squad = toolCall.args.specialists.map((spec: any) => {
-                const newAgent = { ...spec, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: spec.modelId || 'gemini-3-flash-preview', provider: 'google', isDeletable: true, isSystem: false };
+                const newAgent = { ...spec, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: spec.modelId || 'gemini-2.5-flash', provider: 'google', isDeletable: true, isSystem: false };
                 onRecruitAgent(newAgent);
                 return newAgent;
             });
@@ -77,20 +77,46 @@ export const useAgentExecution = (
                 ...updatedHistory[msgIndex],
                 content: { ...updatedHistory[msgIndex].content, text: `✅ Command Initialized: The **${newTeam.name}** squad has been deployed.`, toolCall: undefined }
             };
-            setChatHistory(prev => ({ ...prev, [activeChatId]: updatedHistory }));
+
+            const introMessage: Message = {
+                id: `intro-${Date.now()}`,
+                userId: currentUser?.id,
+                agent: AGENTS.PRISM, // Prism introduces the team
+                content: { type: 'text', text: `The **${newTeam.name}** squad has been successfully deployed and synchronized. Instruct them when ready.` },
+                type: 'agent'
+            };
+
+            setChatHistory(prev => ({
+                ...prev,
+                [activeChatId]: updatedHistory,
+                [newTeam.id]: [introMessage]
+            }));
             setActiveChatId(newTeam.id);
             return;
         }
 
         if (toolCall.name === 'fabricateAgent') {
-            const agentParam = { ...toolCall.args, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: toolCall.args.modelId || 'gemini-3-flash-preview', provider: 'google', isDeletable: true, isSystem: false };
+            const agentParam = { ...toolCall.args, id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, type: 'agent', userId: currentUser?.id, model: toolCall.args.modelId || 'gemini-2.5-flash', provider: 'google', isDeletable: true, isSystem: false };
             onRecruitAgent(agentParam);
             const updatedHistory = [...history];
             updatedHistory[msgIndex] = {
                 ...updatedHistory[msgIndex],
                 content: { ...updatedHistory[msgIndex].content, text: `✅ Agent Fabrication Successful: ${toolCall.args.name} has been deployed.`, toolCall: undefined }
             };
-            setChatHistory(prev => ({ ...prev, [activeChatId]: updatedHistory }));
+
+            const introMessage: Message = {
+                id: `intro-${Date.now()}`,
+                userId: currentUser?.id,
+                agent: agentParam as Agent,
+                content: { type: 'text', text: `Initialization complete. I am **${agentParam.name}**, your new ${agentParam.role}. How can I assist you today?` },
+                type: 'agent'
+            };
+
+            setChatHistory(prev => ({
+                ...prev,
+                [activeChatId]: updatedHistory,
+                [agentParam.id]: [introMessage]
+            }));
             setActiveChatId(agentParam.id);
             return;
         }

@@ -6,12 +6,13 @@ interface SpectrumViewProps {
     onHire: (profile: AIModelProfile | AgentTemplate) => void;
     onFabricateAgent: () => void;
     onInitializeGroup: () => void;
+    onOpenChat: (id: string) => void;
     agents: Agent[];
     teams: Team[];
     userProfile: UserProfile;
 }
 
-export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateAgent, onInitializeGroup, agents, teams, userProfile }) => {
+export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateAgent, onInitializeGroup, onOpenChat, agents, teams, userProfile }) => {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -89,7 +90,7 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                                     name={agent.name}
                                     sub={agent.role}
                                     tagline={agent.jobDescription.slice(0, 100) + '...'}
-                                    onClick={() => { }}
+                                    onClick={() => onOpenChat(agent.id)}
                                     isExpanded={expandedId === agent.id}
                                     onToggleExpand={() => setExpandedId(expandedId === agent.id ? null : agent.id)}
                                     details={agent.jobDescription}
@@ -102,7 +103,7 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                                     name={team.name}
                                     sub="Group Command"
                                     tagline={team.description || "No objective defined."}
-                                    onClick={() => { }}
+                                    onClick={() => onOpenChat(team.id)}
                                     isExpanded={expandedId === team.id}
                                     onToggleExpand={() => setExpandedId(expandedId === team.id ? null : team.id)}
                                     details={`${team.agents.length} specialized units enrolled.`}

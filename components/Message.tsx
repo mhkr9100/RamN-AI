@@ -36,13 +36,21 @@ const CommandProposal: React.FC<{
 
     const handleDeploy = () => {
         const modifiedArgs = { ...toolCall.args };
+        const validModelIds = AI_RESUMES.map(m => m.modelId);
+
+        const getValidModel = (id: string, fallbackId?: string) => {
+            if (id && validModelIds.includes(id)) return id;
+            if (fallbackId && validModelIds.includes(fallbackId)) return fallbackId;
+            return AI_RESUMES[0].modelId;
+        };
+
         if (isSquad) {
             modifiedArgs.specialists = modifiedArgs.specialists.map((s: any, i: number) => ({
                 ...s,
-                modelId: selectedModels[i] || s.modelId || AI_RESUMES[0].modelId
+                modelId: getValidModel(selectedModels[i], s.modelId)
             }));
         } else if (isSingleAgent) {
-            modifiedArgs.modelId = selectedModels[0] || modifiedArgs.modelId || AI_RESUMES[0].modelId;
+            modifiedArgs.modelId = getValidModel(selectedModels[0], modifiedArgs.modelId);
         }
         onProceed(modifiedArgs);
     };
@@ -264,7 +272,7 @@ const SimpleMarkdown: React.FC<{ text: string }> = ({ text }) => {
     )
 }
 
-export const Message: React.FC<MessageProps> = ({ message, onExecuteCommand, onExpandMessage }) => {
+const MessageComponent: React.FC<MessageProps> = ({ message, onExecuteCommand, onExpandMessage }) => {
     const isUser = message.type === 'user';
     const mode = (message.content as any).mode || 'CHAT';
     const isExpanding = (message.content as any).isExpanding;
@@ -384,3 +392,16 @@ export const Message: React.FC<MessageProps> = ({ message, onExecuteCommand, onE
         </div>
     );
 };
+
+export const Message = React.memo(MessageComponent, (prevProps, nextProps) => {
+    if (prevProps.message.id !== nextProps.message.id) return false;
+
+    const prevContent = prevProps.message.content as any;
+    const nextContent = nextProps.message.content as any;
+
+    if (prevContent.text !== nextContent.text) return false;
+    if (prevContent.isExpanding !== nextContent.isExpanding) return false;
+    if (prevContent.mode !== nextContent.mode) return false;
+
+    return true;
+});

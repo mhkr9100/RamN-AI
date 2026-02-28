@@ -122,14 +122,38 @@ export const useUserMap = (currentUser: UserProfile | null) => {
             if (match) {
                 const facts: string[] = JSON.parse(match[0]);
                 const timestamp = Date.now();
+                const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+                const apiKey = userKeys?.geminiKey || '';
+
                 for (const fact of facts) {
+                    const id = `mem_${timestamp}_${Math.random().toString(36).slice(2, 8)}`;
+
+                    // 1. Store locally
                     await dbService.put(STORES_ENUM.MEMORIES, {
-                        id: `mem_${timestamp}_${Math.random().toString(36).slice(2, 8)}`,
+                        id,
                         userId: currentUser.id,
                         agentId,
                         content: fact,
                         createdAt: new Date().toISOString()
                     });
+
+                    // 2. Push to AWS Long-Term Memory (vector DB)
+                    if (BACKEND_URL && apiKey) {
+                        const token = localStorage.getItem('auth_token');
+                        const headers: any = { 'Content-Type': 'application/json' };
+                        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                        fetch(`${BACKEND_URL}/api/memory/add`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                userId: currentUser.id,
+                                agentId,
+                                content: fact,
+                                apiKey
+                            })
+                        }).catch(e => console.error('[AWS Memory Sync Error]', e));
+                    }
                 }
             }
         } catch (e) {

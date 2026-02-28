@@ -16,6 +16,7 @@ interface UserMapViewProps {
     onDeleteNode: (nodeId: string) => void;
     onAddNode: (parentId: string, newNode: PageNode) => void;
     onConsolidate: () => void;
+    onOpenProfile: () => void;
 }
 
 // Recursive tree node component
@@ -156,7 +157,7 @@ const TreeNode: React.FC<{
 };
 
 export const UserMapView: React.FC<UserMapViewProps> = ({
-    tree, isConsolidating, onUpdateNode, onDeleteNode, onAddNode, onConsolidate
+    tree, isConsolidating, onUpdateNode, onDeleteNode, onAddNode, onConsolidate, onOpenProfile
 }) => {
     const isEmpty = tree.children.length === 0;
 
@@ -207,9 +208,9 @@ export const UserMapView: React.FC<UserMapViewProps> = ({
                         <p className="text-white/15 text-[10px] max-w-xs leading-relaxed mb-6">
                             Start chatting with agents, then click "Consolidate" to extract and structure your context into an editable tree.
                         </p>
-                        <p className="text-white/10 text-[8px] uppercase tracking-widest">
-                            Requires Mem0 API key in User Profile
-                        </p>
+                        <button onClick={onOpenProfile} className="text-white/40 text-[9px] uppercase hover:text-white transition-colors underline decoration-white/20 underline-offset-4 tracking-widest">
+                            Configure API Key
+                        </button>
                     </div>
                 ) : (
                     <TreeNode node={tree} depth={0} onUpdate={onUpdateNode} onDelete={onDeleteNode} onAdd={onAddNode} />

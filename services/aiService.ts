@@ -28,9 +28,59 @@ function detectProvider(model: string): string {
 /**
  * DIRECT API CALL — No proxy. Calls Google/OpenAI/Anthropic directly from the browser.
  */
-export async function hybridGenerateContent(params: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }, maxRetries = 3): Promise<GenerateContentResponse | any> {
+export async function hybridGenerateContent(
+    params: any,
+    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string },
+    maxRetries = 3,
+    contextInfo?: { userId: string, agentId?: string } // New context info for AWS Memory extraction
+): Promise<GenerateContentResponse | any> {
     const provider = detectProvider(params.model);
     let lastError: any;
+
+    // --- AWS Serverless Memory Injection ---
+    let injectedMemoryContext = '';
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+    if (contextInfo?.userId && BACKEND_URL && userKeys?.geminiKey) {
+        // Extract the last user message to use as the search query
+        const lastUserMessage = params.contents.slice().reverse().find((c: any) => c.role === 'user')?.parts?.[0]?.text;
+
+        if (lastUserMessage) {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const headers: any = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                const res = await fetch(`${BACKEND_URL}/api/memory/search`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                        userId: contextInfo.userId,
+                        agentId: contextInfo.agentId,
+                        query: lastUserMessage,
+                        apiKey: userKeys.geminiKey,
+                        limit: 3 // Inject top 3 most relevant memories
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.results && data.results.length > 0) {
+                        const facts = data.results.map((r: any) => `- ${r.content}`).join('\n');
+                        injectedMemoryContext = `\n\n=== LONG-TERM MEMORY (RELEVANT FACTS) ===\n${facts}\n=========================================\n`;
+                    }
+                }
+            } catch (e) {
+                console.error('[AWS Memory Search API Error]', e);
+            }
+        }
+    }
+
+    // Inject memory into system prompt if exists
+    if (injectedMemoryContext) {
+        params.config = params.config || {};
+        params.config.systemInstruction = (params.config.systemInstruction || '') + injectedMemoryContext;
+    }
+    // ---------------------------------------
 
     for (let i = 0; i < maxRetries; i++) {
         try {
@@ -65,7 +115,18 @@ export async function hybridGenerateContent(params: any, userKeys?: { openAiKey?
                     const errText = await response.text();
                     if (errText.includes('API_KEY_INVALID')) throw new Error('Your Gemini API key is invalid. Please check it in User Profile.');
                     if (errText.includes('RESOURCE_EXHAUSTED') || response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
-                    throw new Error(`Google API Error: ${errText.substring(0, 200)}`);
+                    try {
+                        const errObj = JSON.parse(errText);
+                        if (errObj.error && errObj.error.message) {
+                            if (errObj.error.message.includes("unexpected model name") || response.status === 400) {
+                                throw new Error("The agent's brain is misconfigured. Please update its model.");
+                            }
+                            throw new Error("Provider rejected the request. Please verify your settings and API keys.");
+                        }
+                    } catch (e) {
+                        if (e instanceof Error && e.message.startsWith('Google API:')) throw e;
+                    }
+                    throw new Error(`Google API encountered an issue. Please verify your model access or configuration.`);
                 }
 
                 const data = await response.json();
@@ -120,7 +181,19 @@ export async function hybridGenerateContent(params: any, userKeys?: { openAiKey?
                     const errText = await response.text();
                     if (response.status === 401) throw new Error('Your OpenAI API key is invalid. Please check it in User Profile.');
                     if (response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
-                    throw new Error(`OpenAI Error: ${errText.substring(0, 200)}`);
+                    try {
+                        const errObj = JSON.parse(errText);
+                        if (errObj.error && errObj.error.message) {
+                            if (response.status === 400 || errObj.error.message.includes("model")) {
+                                throw new Error("The agent's brain is misconfigured. Please update its model settings.");
+                            }
+                            throw new Error("Provider rejected the request. Please verify your settings and API keys.");
+                        }
+                    } catch (e) {
+                        if (e instanceof Error && e.message.startsWith('The agent')) throw e;
+                        if (e instanceof Error && e.message.startsWith('Provider')) throw e;
+                    }
+                    throw new Error(`OpenAI API encountered an issue. Please verify your model access or configuration.`);
                 }
 
                 const data = await response.json();
@@ -170,7 +243,19 @@ export async function hybridGenerateContent(params: any, userKeys?: { openAiKey?
                     const errText = await response.text();
                     if (response.status === 401) throw new Error('Your Anthropic API key is invalid. Please check it in User Profile.');
                     if (response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
-                    throw new Error(`Anthropic Error: ${errText.substring(0, 200)}`);
+                    try {
+                        const errObj = JSON.parse(errText);
+                        if (errObj.error && errObj.error.message) {
+                            if (response.status === 400 || errObj.error.message.includes("model")) {
+                                throw new Error("The agent's brain is misconfigured. Please update its model settings.");
+                            }
+                            throw new Error("Provider rejected the request. Please verify your settings and API keys.");
+                        }
+                    } catch (e) {
+                        if (e instanceof Error && e.message.startsWith('The agent')) throw e;
+                        if (e instanceof Error && e.message.startsWith('Provider')) throw e;
+                    }
+                    throw new Error(`Anthropic API encountered an issue. Please verify your model access or configuration.`);
                 }
 
                 const data = await response.json();
@@ -312,7 +397,8 @@ export async function generateSingleAgentResponse(
     otherAgents: Agent[] = [],
     assignedTasks?: string[],
     responseMode: 'CHAT' | 'SOLUTION' | 'TASK' = 'CHAT',
-    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }
+    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string },
+    userId?: string
 ): Promise<MessageContent | null> {
 
     const caps = agent.capabilities || [];
@@ -331,6 +417,7 @@ export async function generateSingleAgentResponse(
         });
         systemPrompt += `CRITICAL INSTRUCTION: When answering questions, prioritize the information contained in these files or their URLs if you are able to extract them. Since you are an expert agent, act as if this knowledge is natively yours.\n\n`;
     }
+
 
     if (caps.length > 0) {
         // [TOOLS_PROTOCOL] now resides in the base system prompt for Prism, though others may still need a slimmed version.
@@ -358,6 +445,11 @@ export async function generateSingleAgentResponse(
             if (!availableTools.find(t => t.name === 'fabricateTeam')) availableTools.push(CAPABILITY_TOOLS.fabricateTeam);
         }
 
+        let contextInfo: any = undefined;
+        if (userId) {
+            contextInfo = { userId, agentId: agent.id };
+        }
+
         const response = await hybridGenerateContent({
             model: agent.model,
             contents: contents as any,
@@ -366,7 +458,7 @@ export async function generateSingleAgentResponse(
                 tools: availableTools.length > 0 ? [{ functionDeclarations: availableTools }] : undefined,
                 thinkingConfig: agent.model.includes('pro') ? { thinkingBudget: 32768 } : undefined
             }
-        }, userKeys);
+        }, userKeys, 3, contextInfo);
 
         if (response.functionCalls && response.functionCalls.length > 0) {
             const call = response.functionCalls[0];
@@ -382,7 +474,7 @@ export async function generateSingleAgentResponse(
                         { role: 'user', parts: [{ functionResponse: { name: call.name, response: { result: toolOutput } } }] }
                     ] as any,
                     config: { systemInstruction: systemPrompt }
-                }, userKeys);
+                }, userKeys, 3, contextInfo);
 
                 return {
                     type: 'text',
@@ -508,7 +600,8 @@ export async function generatePrismResponse(
     prismAgent: Agent,
     setStatus: (s: string) => void,
     userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string },
-    availableProviders?: string
+    availableProviders?: string,
+    userId?: string
 ) {
     setStatus("Refracting...");
     const { model, provider } = resolvePrismModel(userKeys);
@@ -529,5 +622,5 @@ export async function generatePrismResponse(
     } else {
         modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user has no external API keys configured. Guide them to add API keys in their User Profile.`;
     }
-    return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', userKeys);
+    return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', userKeys, userId);
 }

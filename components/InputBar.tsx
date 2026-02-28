@@ -73,6 +73,13 @@ export const InputBar: React.FC<InputBarProps> = ({
     } else setShowMentions(false);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   const selectMention = (agent: Agent) => {
     const lastAt = prompt.lastIndexOf('@');
     const prefix = prompt.substring(0, lastAt);
@@ -166,7 +173,7 @@ export const InputBar: React.FC<InputBarProps> = ({
               value={prompt}
               onChange={handleChange}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
+                if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); handleSubmit(); }
               }}
               placeholder="Refract intelligence..."
               className="flex-1 bg-transparent text-sm text-white placeholder-white/20 focus:outline-none max-h-[100px] overflow-y-auto py-2.5 px-3 custom-scrollbar leading-relaxed"
