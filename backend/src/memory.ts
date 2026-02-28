@@ -101,11 +101,12 @@ async function fetchGeminiEmbedding(text: string, apiKey: string, retries = 3): 
 
             if (!res.ok) {
                 const err = await res.text();
-                // If Rate Limited or Server Error, retry
+                // If Rate Limited or Server Error, retry with exponential backoff
                 if (res.status === 429 || res.status >= 500) {
                     lastError = new Error(`Embedding generation retryable error: ${res.status} ${err}`);
-                    console.warn(`[MemoryAPI] Embedding fetch failed (attempt ${i + 1}/${retries}). Backing off...`);
-                    await new Promise(r => setTimeout(r, Math.random() * 1000 + Math.pow(2, i) * 1000));
+                    const backoff = Math.random() * 1000 + Math.pow(2, i) * 1000;
+                    console.warn(`[MemoryAPI] Embedding fetch failed (attempt ${i + 1}/${retries}). Retrying in ${Math.round(backoff)}ms...`);
+                    await new Promise(r => setTimeout(r, backoff));
                     continue;
                 }
                 throw new Error(`Embedding generation fatal error: ${res.status} ${err}`);
@@ -115,6 +116,7 @@ async function fetchGeminiEmbedding(text: string, apiKey: string, retries = 3): 
             return data.embedding?.values || [];
         } catch (error) {
             lastError = error;
+            console.error(`[MemoryAPI] Unexpected error during embedding fetch:`, error);
         }
     }
     throw lastError;

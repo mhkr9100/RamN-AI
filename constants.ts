@@ -15,11 +15,11 @@ export const VAULT = {
 
 export const AI_RESUMES: AIModelProfile[] = [
     {
-        id: 'gemini-2.5-flash',
-        name: 'Gemini 2.5 Flash',
+        id: 'gemini-2.0-flash',
+        name: 'Gemini 2.0 Flash',
         version: 'Stable',
         provider: 'google',
-        modelId: 'gemini-2.5-flash',
+        modelId: 'gemini-2.0-flash',
         icon: '⚡',
         tagline: 'High Speed Intelligence',
         tags: ['Fast', 'Efficient'],
@@ -37,11 +37,11 @@ export const AI_RESUMES: AIModelProfile[] = [
         supportedCapabilities: ['googleSearch', 'transcription', 'vision']
     },
     {
-        id: 'gemini-2.5-pro',
-        name: 'Gemini 2.5 Pro',
+        id: 'gemini-1.5-pro',
+        name: 'Gemini 1.5 Pro',
         version: 'Stable',
         provider: 'google',
-        modelId: 'gemini-2.5-pro',
+        modelId: 'gemini-1.5-pro',
         icon: '🧠',
         tagline: 'Deep Reasoning Engine',
         tags: ['Reasoning', 'Complex'],
@@ -59,11 +59,11 @@ export const AI_RESUMES: AIModelProfile[] = [
         supportedCapabilities: ['googleSearch', 'thinking', 'vision', 'videoUnderstanding']
     },
     {
-        id: 'gemini-2.5-flash',
-        name: 'Gemini 2.5 Flash',
+        id: 'gemini-1.5-flash',
+        name: 'Gemini 1.5 Flash',
         version: 'Stable',
         provider: 'google',
-        modelId: 'gemini-2.5-flash',
+        modelId: 'gemini-1.5-flash',
         icon: '💎',
         tagline: 'Stable Multitasker',
         tags: ['Stable', 'Maps'],

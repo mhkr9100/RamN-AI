@@ -25,16 +25,55 @@ export const useScatter = () => {
     } = useAuth();
 
     const {
-        agents, setAgents, teams, setTeams,
-        loadEntities, recruitAgent, deleteAgent, deleteTeam, createTeam
-    } = useEntities(currentUser);
-
-    const {
         chatHistory, setChatHistory, activeChatId, setActiveChatId,
         chatSessions, activeSessionId,
         loadSessions, addMessage, clearChat, loadChatHistory,
         startNewSession, resumeSession, getSessionsForEntity
     } = useChatSessions(currentUser);
+
+    const {
+        agents, setAgents, teams, setTeams,
+        loadEntities, recruitAgent: _recruitAgent, deleteAgent, deleteTeam, createTeam: _createTeam
+    } = useEntities(currentUser);
+
+    const recruitAgent = useCallback((data: any) => {
+        const agent = _recruitAgent(data);
+        if (agent) {
+            setChatHistory(prev => {
+                if (prev[agent.id]?.length) return prev;
+                return {
+                    ...prev,
+                    [agent.id]: [{
+                        id: `intro-${Date.now()}`,
+                        userId: currentUser?.id,
+                        agent: agent,
+                        content: { type: 'text', text: `Initialization complete. I am **${agent.name}**, your new ${agent.role}. How can I assist you today?` },
+                        type: 'agent'
+                    }]
+                };
+            });
+        }
+        return agent;
+    }, [_recruitAgent, setChatHistory, currentUser]);
+
+    const createTeam = useCallback((data: any) => {
+        return _createTeam(data, (id) => {
+            setActiveChatId(id);
+            setChatHistory(prev => {
+                if (prev[id]?.length) return prev;
+                return {
+                    ...prev,
+                    [id]: [{
+                        id: `intro-${Date.now()}`,
+                        userId: currentUser?.id,
+                        agent: AGENTS.PRISM,
+                        content: { type: 'text', text: `The **${data.name}** squad has been successfully deployed and synchronized. Instruct them when ready.` },
+                        type: 'agent'
+                    }]
+                };
+            });
+        });
+    }, [_createTeam, setActiveChatId, setChatHistory, currentUser]);
 
     // === Load Data on Auth ===
     useEffect(() => {
@@ -207,7 +246,7 @@ export const useScatter = () => {
         handleSendMessage, handleExecuteCommand: _executeCmdProxy, handleExpandMessage: _expandMsgProxy,
         processSilentDirective, injectOutputToChat,
         clearChat, loadChatHistory, recruitAgent, deleteAgent, deleteTeam,
-        createTeam: (data: any) => createTeam(data, setActiveChatId),
+        createTeam,
         // Session Management
         chatSessions, activeSessionId, startNewSession, resumeSession, getSessionsForEntity
     };

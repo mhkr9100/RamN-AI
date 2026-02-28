@@ -203,7 +203,10 @@ async function extractFacts(messages: Array<{ role: string; content: string }>, 
     const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
     const res = await fetch(targetUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ramn-mock-jwt-${geminiKey.slice(0, 10)}` // Mock auth for service-level calls if needed
+        },
         body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: `Extract key facts, preferences, and context from this conversation. Return ONLY a JSON array of strings, each being one distinct fact. Example: ["User prefers Python", "User is building a SaaS product"]\n\nConversation:\n${conversationText}` }] }],
             systemInstruction: { parts: [{ text: 'You are a fact extractor. Extract user preferences, goals, technical choices, business context, and personal details from conversations. Output ONLY a valid JSON array of fact strings. Be concise. Deduplicate.' }] }
