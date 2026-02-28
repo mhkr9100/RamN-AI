@@ -67,7 +67,7 @@ const TreeNode: React.FC<{
                     </button>
                 )}
                 {node.children.length === 0 && <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/40" />
+                    <div className="w-1 h-1 rounded-full bg-white/20" />
                 </div>}
 
                 {/* Node Content */}
@@ -76,7 +76,7 @@ const TreeNode: React.FC<{
                         <input
                             value={editLabel}
                             onChange={e => setEditLabel(e.target.value)}
-                            className="flex-1 bg-black border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500"
+                            className="flex-1 bg-black border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-white/40"
                             autoFocus
                             onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
                         />
@@ -84,18 +84,18 @@ const TreeNode: React.FC<{
                             <input
                                 value={editValue}
                                 onChange={e => setEditValue(e.target.value)}
-                                className="flex-1 bg-black border border-white/10 rounded px-2 py-1 text-[10px] text-white/60 outline-none focus:border-emerald-500"
+                                className="flex-1 bg-black border border-white/10 rounded px-2 py-1 text-[10px] text-white/60 outline-none focus:border-white/40"
                                 placeholder="Value..."
                                 onKeyDown={e => e.key === 'Enter' && handleSaveEdit()}
                             />
                         )}
-                        <button onClick={handleSaveEdit} className="text-emerald-500 text-[9px] font-bold uppercase">Save</button>
+                        <button onClick={handleSaveEdit} className="text-white/60 text-[9px] font-bold uppercase">Save</button>
                         <button onClick={() => setIsEditing(false)} className="text-white/30 text-[9px] font-bold uppercase">Cancel</button>
                     </div>
                 ) : (
                     <div className="flex-1 min-w-0">
                         <span
-                            className={`text-xs font-semibold cursor-pointer hover:text-white transition-colors ${isRoot ? 'text-emerald-400 text-sm font-black uppercase tracking-widest' : isLeaf ? 'text-white/60' : 'text-white/80'}`}
+                            className={`text-xs font-semibold cursor-pointer hover:text-white transition-colors ${isRoot ? 'text-white/90 text-sm font-black uppercase tracking-widest' : isLeaf ? 'text-white/60' : 'text-white/80'}`}
                             onClick={() => !isRoot && setIsEditing(true)}
                         >
                             {node.label}
@@ -112,7 +112,7 @@ const TreeNode: React.FC<{
                         <button onClick={() => setIsEditing(true)} className="p-1 text-white/20 hover:text-white/60" title="Edit">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" /></svg>
                         </button>
-                        <button onClick={() => setIsAddingChild(true)} className="p-1 text-white/20 hover:text-emerald-400" title="Add child">
+                        <button onClick={() => setIsAddingChild(true)} className="p-1 text-white/20 hover:text-white/60" title="Add child">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                         </button>
                         <button onClick={() => onDelete(node.id)} className="p-1 text-white/20 hover:text-red-400" title="Delete">
@@ -130,12 +130,12 @@ const TreeNode: React.FC<{
                             <input
                                 value={newChildLabel}
                                 onChange={e => setNewChildLabel(e.target.value)}
-                                className="flex-1 bg-black border border-emerald-500/30 rounded px-2 py-1 text-xs text-white outline-none focus:border-emerald-500"
+                                className="flex-1 bg-black border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-white/40"
                                 placeholder="New node label..."
                                 autoFocus
                                 onKeyDown={e => e.key === 'Enter' && handleAddChild()}
                             />
-                            <button onClick={handleAddChild} className="text-emerald-500 text-[9px] font-bold uppercase">Add</button>
+                            <button onClick={handleAddChild} className="text-white/60 text-[9px] font-bold uppercase">Add</button>
                             <button onClick={() => setIsAddingChild(false)} className="text-white/30 text-[9px] font-bold uppercase">Cancel</button>
                         </div>
                     </motion.div>
@@ -166,20 +166,20 @@ export const UserMapView: React.FC<UserMapViewProps> = ({
             {/* Header */}
             <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-emerald-400">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
+                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-white/60">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6c0-3.313-2.687-6-6-6s-6 2.687-6 6a6 6 0 0 0 6 6Z" />
                         </svg>
                     </div>
                     <div>
-                        <h2 className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em]">UserMap</h2>
-                        <p className="text-[8px] text-white/30 uppercase tracking-wider">Context Engine</p>
+                        <h2 className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em]">Context Brain</h2>
+                        <p className="text-[8px] text-white/30 uppercase tracking-wider">Neural Map</p>
                     </div>
                 </div>
                 <button
                     onClick={onConsolidate}
                     disabled={isConsolidating}
-                    className="px-4 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-4 py-2 rounded-lg border border-white/10 bg-white/5 text-white/60 text-[9px] font-black uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                     {isConsolidating ? (
                         <>
@@ -199,18 +199,15 @@ export const UserMapView: React.FC<UserMapViewProps> = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 {isEmpty ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
-                        <div className="w-16 h-16 rounded-2xl bg-emerald-500/5 flex items-center justify-center mb-4 border border-emerald-500/10">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-8 h-8 text-emerald-500/20">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z" />
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 border border-white/5">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-8 h-8 text-white/10">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6c0-3.313-2.687-6-6-6s-6 2.687-6 6a6 6 0 0 0 6 6Z" />
                             </svg>
                         </div>
-                        <h3 className="text-white/30 text-xs font-black uppercase tracking-widest mb-2">No Context Yet</h3>
+                        <h3 className="text-white/30 text-xs font-black uppercase tracking-widest mb-2">No Context Extracted</h3>
                         <p className="text-white/15 text-[10px] max-w-xs leading-relaxed mb-6">
-                            Start chatting with agents, then click "Consolidate" to extract and structure your context into an editable tree.
+                            Interact with agents to build your session history. Then use the "Consolidate" function to map your neural profile.
                         </p>
-                        <button onClick={onOpenProfile} className="text-white/40 text-[9px] uppercase hover:text-white transition-colors underline decoration-white/20 underline-offset-4 tracking-widest">
-                            Configure API Key
-                        </button>
                     </div>
                 ) : (
                     <TreeNode node={tree} depth={0} onUpdate={onUpdateNode} onDelete={onDeleteNode} onAdd={onAddNode} />

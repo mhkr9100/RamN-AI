@@ -26,6 +26,7 @@ export const InputBar: React.FC<InputBarProps> = ({
 
   const [showMentions, setShowMentions] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
+  const [isIntervalMode, setIsIntervalMode] = useState(false);
   const [isCreateMode, setIsCreateMode] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -118,6 +119,14 @@ export const InputBar: React.FC<InputBarProps> = ({
                   }`}
               >
                 {isCreateMode ? '🟢 Create Agents: ON' : '⚫ Create Agents: OFF'}
+              </button>
+
+              <button
+                onClick={() => { setIsIntervalMode(!isIntervalMode); }}
+                className={`px-4 py-1.5 border rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isIntervalMode ? 'bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]' : 'bg-[#0a0a0a] text-white/40 border-white/10 hover:border-blue-500/30 hover:text-white'
+                  }`}
+              >
+                {isIntervalMode ? '🔵 Chat Interval: ON' : '⚪ Chat Interval: OFF'}
               </button>
             </div>
           )}

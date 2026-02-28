@@ -47,21 +47,20 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                                     <span className="text-white/20">👤</span>
                                 )}
                             </div>
-                            <input
-                                type="url"
-                                value={avatar}
-                                onChange={e => setAvatar(e.target.value)}
-                                placeholder="Avatar image URL..."
-                                className="w-full bg-black/20 border border-white/5 rounded-lg p-2 text-[10px] font-mono text-white/50 placeholder-white/10 outline-none focus:border-white/20 transition-all text-center"
-                            />
                         </div>
 
                         {/* Identity Fields */}
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <div>
-                                <label className="block text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Email Address</label>
+                                <label className="block text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Account ID</label>
                                 <div className="bg-black/20 border border-white/5 rounded-xl px-4 py-3">
-                                    <p className="text-xs text-white/50 font-mono">{user.email}</p>
+                                    <p className="text-[10px] text-white/50 font-mono truncate">{user.id}</p>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Email</label>
+                                <div className="bg-black/20 border border-white/5 rounded-xl px-4 py-3">
+                                    <p className="text-[10px] text-white/50 font-mono">{user.email}</p>
                                 </div>
                             </div>
                             <div>
@@ -70,49 +69,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, isOpen
                                     type="text"
                                     value={name}
                                     onChange={e => setName(e.target.value)}
-                                    className="w-full bg-[#1A1A1A] border border-white/10 rounded-xl p-3 text-sm text-white focus:border-white outline-none transition-all"
+                                    className="w-full bg-[#222] border border-white/10 rounded-xl p-3 text-sm text-white focus:border-white outline-none transition-all"
                                     required
                                 />
                             </div>
                         </div>
 
-                        {/* Platform Info Tile */}
-                        <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-5">
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="w-8 h-8 bg-white/5 rounded-lg flex items-center justify-center text-sm">🧠</div>
-                                <div>
-                                    <p className="text-[10px] font-black text-white/60 uppercase tracking-widest">RamN AI Platform</p>
-                                    <p className="text-[9px] text-white/25">Managed Infrastructure</p>
-                                </div>
-                                <span className="ml-auto text-[8px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full uppercase tracking-widest">Beta</span>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[
-                                    { label: 'AI Engine', value: 'Gemini 2.0' },
-                                    { label: 'Memory', value: 'Firestore' },
-                                    { label: 'Storage', value: 'AWS S3' },
-                                ].map(item => (
-                                    <div key={item.label} className="text-center p-2 bg-black/20 rounded-lg">
-                                        <p className="text-[9px] text-white/20 uppercase tracking-widest mb-0.5">{item.label}</p>
-                                        <p className="text-[10px] font-black text-white/60">{item.value}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
                         {/* Actions */}
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-3 pt-4">
                             <button
                                 type="submit"
                                 className="w-full py-4 bg-white text-black text-[11px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-[0.98]"
                             >
-                                Save Changes
+                                Save Profile
                             </button>
                             {onLogout && (
                                 <button
                                     type="button"
                                     onClick={onLogout}
-                                    className="w-full py-3 text-red-500/70 hover:text-red-500 text-[10px] font-black uppercase tracking-widest transition-all"
+                                    className="w-full py-3 text-red-500/50 hover:text-red-500 text-[9px] font-black uppercase tracking-widest transition-all"
                                 >
                                     Sign Out
                                 </button>

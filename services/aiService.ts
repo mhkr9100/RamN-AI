@@ -1,14 +1,17 @@
 
 import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
-import { AGENTS, AI_RESUMES } from "../constants";
+import { AGENTS, AI_RESUMES, VAULT } from "../constants";
 import { canMakeRequest, recordRequest } from "./rateLimiter";
 import { userMapService } from "./userMapService";
+import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
-// ─── Platform-managed API key (RamN provides this, users don't touch it) ───
-const PLATFORM_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
-const PLATFORM_GCP_PROJECT_ID = import.meta.env.VITE_GCP_PROJECT_ID as string;
-const PLATFORM_GCP_LOCATION = (import.meta.env.VITE_GCP_LOCATION as string) || 'us-central1';
+// ─── Platform-managed environment access ───
+const getPlatformConfig = () => ({
+    apiKey: import.meta.env.VITE_GEMINI_API_KEY as string,
+    projectId: import.meta.env.VITE_GCP_PROJECT_ID as string,
+    location: (import.meta.env.VITE_GCP_LOCATION as string) || 'us-central1'
+});
 
 /**
  * RamN AI always uses Gemini 2.0 Flash — platform managed.
@@ -21,11 +24,23 @@ export function resolvePrismModel(): { model: string; provider: 'google' } {
 /**
  * Determine provider from model name
  */
-function detectProvider(model: string): string {
+function detectProvider(model: string): 'google' | 'aws' | 'openai' | 'anthropic' {
     if (model.includes('gemini') || model.includes('learnlm')) return 'google';
     if (model.includes('gpt') || model.includes('o1') || model.includes('o3')) return 'openai';
-    if (model.includes('claude')) return 'anthropic';
+    if (model.includes('claude')) {
+        // Decide if Bedrock or Vertex based on config (preferring Bedrock as user requested)
+        return 'aws';
+    }
+    if (model.includes('llama')) return 'aws';
     return 'google';
+}
+
+function getAWSConfig() {
+    return {
+        region: VAULT.AWS.REGION,
+        accessKeyId: VAULT.AWS.ACCESS_KEY_ID,
+        secretAccessKey: VAULT.AWS.SECRET_ACCESS_KEY
+    };
 }
 
 /**
@@ -77,8 +92,16 @@ export async function hybridGenerateContent(
             }
             recordRequest('google');
 
+            // ========== ROUTE BY PROVIDER ==========
+            if (provider === 'aws') {
+                return await bedrockGenerateContent(params);
+            }
+            if (provider === 'openai') {
+                return await openaiGenerateContent(params);
+            }
+
             // ========== GEMINI (Platform Managed) ==========
-            const apiKey = PLATFORM_GEMINI_KEY;
+            const { apiKey } = getPlatformConfig();
             if (!apiKey) throw new Error('[RamN] Platform Gemini key not configured. Contact support.');
 
             // Context Caching: if cachedContent ID is passed, use it to skip re-sending large context
@@ -135,6 +158,98 @@ export async function hybridGenerateContent(
         }
     }
     throw lastError;
+}
+/**
+ * AWS Bedrock Execution
+ * Handles Claude and Llama formatting
+ */
+async function bedrockGenerateContent(params: any): Promise<any> {
+    const config = getAWSConfig();
+    const client = new BedrockRuntimeClient({
+        region: config.region,
+        credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey
+        }
+    });
+
+    const isClaude = params.model.includes('claude');
+    const isLlama = params.model.includes('llama');
+
+    let payload: any;
+    if (isClaude) {
+        payload = {
+            anthropic_version: "bedrock-2023-05-31",
+            max_tokens: 4096,
+            messages: params.contents.map((c: any) => ({
+                role: c.role === 'model' ? 'assistant' : 'user',
+                content: c.parts[0].text
+            })),
+            system: params.config?.systemInstruction
+        };
+    } else if (isLlama) {
+        const prompt = `${params.config?.systemInstruction || ''}\n\n${params.contents.map((c: any) => `${c.role === 'user' ? 'User' : 'Assistant'}: ${c.parts[0].text}`).join('\n')}\nAssistant:`;
+        payload = {
+            prompt,
+            max_gen_len: 2048,
+            temperature: 0.7,
+            top_p: 0.9
+        };
+    }
+
+    const command = new InvokeModelCommand({
+        modelId: params.model,
+        body: JSON.stringify(payload),
+        contentType: 'application/json',
+        accept: 'application/json'
+    });
+
+    const response = await client.send(command);
+    const result = JSON.parse(new TextDecoder().decode(response.body));
+
+    let text = '';
+    if (isClaude) text = result.content[0].text;
+    if (isLlama) text = result.generation;
+
+    return { text: text || 'Managed Response Error.' };
+}
+
+/**
+ * OpenAI Execution
+ * Handles GPT-4o and o1
+ */
+async function openaiGenerateContent(params: any): Promise<any> {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) throw new Error('[RamN] Platform OpenAI key not configured.');
+
+    const payload = {
+        model: params.model,
+        messages: [
+            ...(params.config?.systemInstruction ? [{ role: 'system', content: params.config.systemInstruction }] : []),
+            ...params.contents.map((c: any) => ({
+                role: c.role === 'model' ? 'assistant' : 'user',
+                content: c.parts[0].text
+            }))
+        ],
+        temperature: 0.7
+    };
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        throw new Error(`OpenAI API Error: ${err}`);
+    }
+
+    const data = await response.json();
+    return { text: data.choices[0]?.message?.content || 'Managed Response Error.' };
 }
 
 const TOOL_SAFETY_MAP: Record<string, 'READ_ONLY' | 'ACTION'> = {
@@ -270,8 +385,7 @@ export async function generatePrismResponse(
 
 export async function generateExpandedSolution(
     history: Message[],
-    agent: Agent,
-    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }
+    agent: Agent
 ): Promise<string | null> {
     const systemPrompt = `You are ${agent.name}.\n[DOMAINS OF AUTHORITY]\n${agent.jobDescription}\nProvide an exhaustive expanded solution for the previous interaction.`;
 
@@ -286,7 +400,7 @@ export async function generateExpandedSolution(
             model: agent.model,
             contents: contents as any,
             config: { systemInstruction: systemPrompt }
-        }, userKeys);
+        });
 
         return response.text || null;
     } catch (e) {
@@ -294,15 +408,15 @@ export async function generateExpandedSolution(
     }
 }
 
-export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<MessageContent | null> {
+export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall): Promise<MessageContent | null> {
     try {
         if (toolCall.name === 'generateVisualAsset') {
-            // GEMINI — native image generation
-            if (userKeys?.geminiKey) {
+            const { apiKey } = getPlatformConfig();
+            if (apiKey) {
                 const response = await hybridGenerateContent({
                     model: 'gemini-2.0-flash',
                     contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
-                }, userKeys);
+                });
                 const part = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
                 if (part?.inlineData?.data) {
                     return {
@@ -313,20 +427,7 @@ export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall
                     };
                 }
             }
-            // OPENAI — DALL-E 3
-            if (userKeys?.openAiKey) {
-                const response = await fetch('https://api.openai.com/v1/images/generations', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userKeys.openAiKey}` },
-                    body: JSON.stringify({ model: 'dall-e-3', prompt: toolCall.args.prompt, n: 1, size: '1024x1024', response_format: 'url' })
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    const url = data.data?.[0]?.url;
-                    if (url) return { type: 'image', imageUrl: url, mimeType: 'image/png', text: 'Synthesis Resolved.' };
-                }
-            }
-            return { type: 'text', text: '⚠️ Image generation requires a valid Gemini or OpenAI API key.' };
+            return { type: 'text', text: '⚠️ Image generation requires a valid platform configuration.' };
         }
         return { type: 'text', text: "Operation committed." };
     } catch (e: any) {

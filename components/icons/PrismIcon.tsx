@@ -10,15 +10,12 @@ export const PrismIcon: React.FC<{ size?: number; className?: string }> = ({ siz
         className={className}
     >
         <path
-            d="M12 2L2 19H22L12 2Z"
+            d="M12 3L2 21H22L12 3Z"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="2"
             strokeLinejoin="round"
             fill="currentColor"
             fillOpacity="0.05"
         />
-        <path d="M12 2L8 19" stroke="currentColor" strokeWidth="0.75" opacity="0.4" />
-        <path d="M12 2L16 19" stroke="currentColor" strokeWidth="0.75" opacity="0.4" />
-        <path d="M5 14H19" stroke="currentColor" strokeWidth="0.75" opacity="0.3" />
     </svg>
 );

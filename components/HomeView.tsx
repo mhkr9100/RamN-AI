@@ -44,7 +44,7 @@ export const HomeView: React.FC<HomeViewProps> = ({ onStartChat, onOpenProfile }
                             onClick={onOpenProfile}
                             className="px-12 py-5 bg-white/5 border border-white/10 text-white text-xs font-black uppercase tracking-[0.3em] rounded-2xl transition-all hover:bg-white/10 active:scale-[0.98]"
                         >
-                            Configure APIs
+                            Setup Profile
                         </button>
                     </div>
 
@@ -60,10 +60,10 @@ export const HomeView: React.FC<HomeViewProps> = ({ onStartChat, onOpenProfile }
                                         <Key size={20} />
                                     </div>
                                     <div className="space-y-2">
-                                        <h3 className="text-sm font-bold text-white uppercase tracking-widest">1. Connect Your APIs</h3>
+                                        <h3 className="text-sm font-bold text-white uppercase tracking-widest">1. Setup Your Profile</h3>
                                         <p className="text-xs text-white/40 leading-relaxed">
-                                            Start by adding your API keys under your <span className="text-white/60 font-bold">User Profile</span> (bottom left).
-                                            This powers the specialized models for each agent.
+                                            Initialize your identity and workspace preferences under the <span className="text-white/60 font-bold">User Profile</span>.
+                                            RamN AI manages all intelligence infrastructure for you.
                                         </p>
                                     </div>
                                 </motion.div>

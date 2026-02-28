@@ -178,7 +178,7 @@ export interface AIModelProfile {
   id: string;
   name: string;
   version: string;
-  provider: 'google' | 'auto';
+  provider: 'google' | 'openai' | 'anthropic' | 'meta' | 'auto';
   modelId: string;
   icon: string;
   tagline: string;

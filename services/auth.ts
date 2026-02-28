@@ -11,6 +11,11 @@ export const authService = {
         if (!BACKEND_URL) {
             // Mock Fallback
             const id = `user-${Date.now()}`;
+            const user = { email, password, name, id };
+            const stored = JSON.parse(localStorage.getItem('mock_registry') || '[]');
+            stored.push(user);
+            localStorage.setItem('mock_registry', JSON.stringify(stored));
+
             const session: UserSession = { email, id, name };
             localStorage.setItem('currentUser', JSON.stringify(session));
             localStorage.setItem('auth_token', `mock-jwt-${id}`);
@@ -36,12 +41,22 @@ export const authService = {
     },
 
     async login(email: string, password?: string): Promise<UserSession> {
-        if (!BACKEND_URL || !password) {
-            // Mock Fallback (if no backend or just mock login)
-            const id = `user-${email}`;
-            const session: UserSession = { email, id };
+        if (!BACKEND_URL) {
+            // Mock Fallback with basic security check
+            const storedUsers = JSON.parse(localStorage.getItem('mock_registry') || '[]');
+            const user = storedUsers.find((u: any) => u.email === email && u.password === password);
+
+            if (!user && password !== 'admin') { // Allow 'admin' as universal fallback for dev
+                throw new Error('Invalid email or password');
+            }
+
+            const session: UserSession = {
+                email,
+                id: user?.id || `user-${email}`,
+                name: user?.name || email.split('@')[0]
+            };
             localStorage.setItem('currentUser', JSON.stringify(session));
-            localStorage.setItem('auth_token', `mock-jwt-${id}`);
+            localStorage.setItem('auth_token', `mock-jwt-${session.id}`);
             return session;
         }
 

@@ -2,6 +2,7 @@
 import React, { useState, useRef } from 'react';
 import { AIModelProfile, AgentTemplate, Agent, Team, UserProfile } from '../types';
 import { ToolsView } from './ToolsView';
+import { ModelsView } from './ModelsView';
 
 interface SpectrumViewProps {
     onHire: (profile: AIModelProfile | AgentTemplate) => void;
@@ -54,7 +55,13 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                         onClick={() => scrollToSection(2)}
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
-                        🔧 Tools
+                        Tools
+                    </button>
+                    <button
+                        onClick={() => scrollToSection(3)}
+                        className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
+                    >
+                        AI Models
                     </button>
                 </div>
             </header>
@@ -153,6 +160,11 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                 {/* SECTION 3: TOOLS */}
                 <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
                     <ToolsView />
+                </div>
+
+                {/* SECTION 4: MODELS */}
+                <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
+                    <ModelsView />
                 </div>
             </div>
         </div>

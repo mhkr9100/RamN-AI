@@ -32,15 +32,14 @@ export const useAuth = () => {
 
     const login = useCallback(async (email: string, name: string, password?: string) => {
         try {
-            const authUser = await authService.getCurrentUser();
-            const user: UserProfile = {
-                id: authUser?.id || `aws-${Date.now()}`,
-                email,
-                name,
+            const user = await authService.login(email, password);
+            const profile: UserProfile = {
+                id: user.id,
+                email: user.email,
+                name: user.name || name,
                 avatar: ''
             };
-            // Preserve keys if they exist in localStorage (handle elsewhere or just reset)
-            setCurrentUser(user);
+            setCurrentUser(profile);
         } catch (e) {
             console.error(e);
             throw e;
@@ -49,20 +48,19 @@ export const useAuth = () => {
 
     const register = useCallback(async (email: string, name: string, password?: string) => {
         try {
-            const authUser = await authService.getCurrentUser();
-            const user: UserProfile = {
-                id: authUser?.id || `aws-${Date.now()}`,
-                email,
-                name,
+            const user = await authService.register(email, password || 'password', name);
+            const profile: UserProfile = {
+                id: user.id,
+                email: user.email,
+                name: user.name || name,
                 avatar: ''
             };
-            setCurrentUser(user);
+            setCurrentUser(profile);
         } catch (e) {
             console.error(e);
             throw e;
         }
     }, []);
-
     const logout = useCallback(async () => {
         await authService.logout();
         setCurrentUser(null);
