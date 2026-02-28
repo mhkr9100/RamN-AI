@@ -22,9 +22,7 @@ export interface UserProfile {
   email: string;
   avatar?: string;
   bio?: string;
-  openAiKey?: string;
-  anthropicKey?: string;
-  geminiKey?: string;
+  // API keys are platform-managed (not user-provided)
 }
 
 export interface ChatSession {

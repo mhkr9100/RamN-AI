@@ -77,7 +77,7 @@ export const useUserMap = (currentUser: UserProfile | null) => {
     }, [userMapTree, saveTree]);
 
     // Consolidate: pull chat memories from IndexedDB, structure into tree client-side
-    const consolidate = useCallback(async (userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }) => {
+    const consolidate = useCallback(async () => {
         if (!currentUser) {
             throw new Error('Not logged in.');
         }
@@ -93,7 +93,7 @@ export const useUserMap = (currentUser: UserProfile | null) => {
 
             // Use pageIndexService to structure into tree
             const { pageIndexService } = await import('../services/pageIndexService');
-            const tree = await pageIndexService.consolidate(memoryStrings, userMapTree.children.length > 0 ? userMapTree : undefined, userKeys);
+            const tree = await pageIndexService.consolidate(memoryStrings, userMapTree.children.length > 0 ? userMapTree : undefined);
             await saveTree(tree);
         } finally {
             setIsConsolidating(false);
@@ -101,12 +101,12 @@ export const useUserMap = (currentUser: UserProfile | null) => {
     }, [currentUser, userMapTree, saveTree]);
 
     // Ingest current chat session into memory — extract facts client-side, store in IndexedDB
-    const ingestSession = useCallback(async (messages: Array<{ role: string; content: string }>, agentId?: string, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }) => {
+    const ingestSession = useCallback(async (messages: Array<{ role: string; content: string }>, agentId?: string) => {
         if (!currentUser) return;
         if (messages.length < 2) return; // Need at least a user+agent exchange
         try {
             const { hybridGenerateContent, resolvePrismModel } = await import('../services/aiService');
-            const { model } = resolvePrismModel(userKeys);
+            const { model } = resolvePrismModel();
 
             const chatText = messages.map(m => `${m.role}: ${m.content}`).join('\n');
             const res = await hybridGenerateContent({
@@ -115,7 +115,7 @@ export const useUserMap = (currentUser: UserProfile | null) => {
                 config: {
                     systemInstruction: `Extract key facts about the user from this conversation. Return a JSON array of short fact strings. Example: ["User works on a startup called RamN AI", "User prefers React over Vue"]. Extract ONLY user-specific facts. Output ONLY the JSON array.`
                 }
-            }, userKeys);
+            });
 
             const text = res.text || '';
             const match = text.match(/\[[\s\S]*\]/);
@@ -123,7 +123,6 @@ export const useUserMap = (currentUser: UserProfile | null) => {
                 const facts: string[] = JSON.parse(match[0]);
                 const timestamp = Date.now();
                 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-                const apiKey = userKeys?.geminiKey || '';
 
                 for (const fact of facts) {
                     const id = `mem_${timestamp}_${Math.random().toString(36).slice(2, 8)}`;
@@ -138,7 +137,7 @@ export const useUserMap = (currentUser: UserProfile | null) => {
                     });
 
                     // 2. Push to AWS Long-Term Memory (vector DB)
-                    if (BACKEND_URL && apiKey) {
+                    if (BACKEND_URL) {
                         const token = localStorage.getItem('auth_token');
                         const headers: any = { 'Content-Type': 'application/json' };
                         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -149,8 +148,7 @@ export const useUserMap = (currentUser: UserProfile | null) => {
                             body: JSON.stringify({
                                 userId: currentUser.id,
                                 agentId,
-                                content: fact,
-                                apiKey
+                                content: fact
                             })
                         }).catch(e => console.error('[AWS Memory Sync Error]', e));
                     }

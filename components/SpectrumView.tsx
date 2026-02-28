@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { AIModelProfile, AgentTemplate, Agent, Team, UserProfile } from '../types';
+import { ToolsView } from './ToolsView';
 
 interface SpectrumViewProps {
     onHire: (profile: AIModelProfile | AgentTemplate) => void;
@@ -48,6 +49,12 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                         className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
                     >
                         Special Agents
+                    </button>
+                    <button
+                        onClick={() => scrollToSection(2)}
+                        className="px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 hover:border-white/30 text-white/60 hover:text-white"
+                    >
+                        🔧 Tools
                     </button>
                 </div>
             </header>
@@ -126,6 +133,26 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                             )}
                         </div>
                     </div>
+                </div>
+
+                {/* SECTION 2: SPECIAL AGENTS (Placeholder) */}
+                <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
+                    <div className="max-w-5xl mx-auto">
+                        <div className="mb-8 flex items-center gap-4">
+                            <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">Special Agents</h3>
+                            <div className="h-px flex-1 bg-white/5" />
+                        </div>
+                        <div className="flex flex-col items-center justify-center p-16 bg-white/[0.01] border border-white/5 rounded-2xl">
+                            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10 text-2xl">🤖</div>
+                            <h4 className="text-white/40 font-black uppercase tracking-widest text-xs mb-2">Coming Soon</h4>
+                            <p className="text-white/20 text-[10px] text-center max-w-sm">Pre-built specialist agents for common tasks will appear here.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* SECTION 3: TOOLS */}
+                <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
+                    <ToolsView />
                 </div>
             </div>
         </div>

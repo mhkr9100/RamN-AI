@@ -69,13 +69,8 @@ export const useAuth = () => {
         setIsInitializing(false);
     }, []);
 
-    const getUserKeys = useCallback(() => {
-        return {
-            openAiKey: currentUser?.openAiKey,
-            anthropicKey: currentUser?.anthropicKey,
-            geminiKey: currentUser?.geminiKey
-        };
-    }, [currentUser]);
+    // Platform-managed: no user API keys. Returns empty object for backward compat with any callers.
+    const getUserKeys = useCallback(() => ({}), []);
 
     return {
         currentUser, setCurrentUser, isInitializing, setIsInitializing,

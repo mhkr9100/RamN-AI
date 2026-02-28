@@ -3,16 +3,19 @@ import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentRespon
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
 import { AGENTS, AI_RESUMES } from "../constants";
 import { canMakeRequest, recordRequest } from "./rateLimiter";
+import { userMapService } from "./userMapService";
+
+// ─── Platform-managed API key (RamN provides this, users don't touch it) ───
+const PLATFORM_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
+const PLATFORM_GCP_PROJECT_ID = import.meta.env.VITE_GCP_PROJECT_ID as string;
+const PLATFORM_GCP_LOCATION = (import.meta.env.VITE_GCP_LOCATION as string) || 'us-central1';
 
 /**
- * Resolve Prism's model dynamically based on which API key the user has.
- * Picks the fastest/smallest model from the available provider.
+ * RamN AI always uses Gemini 2.0 Flash — platform managed.
+ * No user API keys required.
  */
-export function resolvePrismModel(userKeys?: { openAiKey?: string; anthropicKey?: string; geminiKey?: string }): { model: string; provider: 'google' | 'openai' | 'anthropic' | 'auto' } {
-    if (userKeys?.geminiKey) return { model: 'gemini-2.5-flash', provider: 'google' };
-    if (userKeys?.openAiKey) return { model: 'gpt-4o-mini', provider: 'openai' };
-    if (userKeys?.anthropicKey) return { model: 'claude-3-5-haiku-latest', provider: 'anthropic' };
-    return { model: 'gemini-2.5-flash', provider: 'google' }; // fallback
+export function resolvePrismModel(): { model: string; provider: 'google' } {
+    return { model: 'gemini-2.0-flash', provider: 'google' };
 }
 
 /**
@@ -26,51 +29,34 @@ function detectProvider(model: string): string {
 }
 
 /**
- * DIRECT API CALL — No proxy. Calls Google/OpenAI/Anthropic directly from the browser.
+ * PLATFORM-MANAGED GENERATE CONTENT
+ * All calls use the RamN-provided Gemini key (env var).
+ * Supports Context Caching via `cachedContent` param to cut token costs for long user contexts.
  */
 export async function hybridGenerateContent(
     params: any,
-    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string },
+    _userKeys?: any, // kept for signature compatibility — ignored, platform key is used
     maxRetries = 3,
-    contextInfo?: { userId: string, agentId?: string } // New context info for AWS Memory extraction
+    contextInfo?: { userId: string, agentId?: string }
 ): Promise<GenerateContentResponse | any> {
     const provider = detectProvider(params.model);
     let lastError: any;
 
-    // --- AWS Serverless Memory Injection ---
+    // --- INTEGRATED USERMAP (LONG-TERM MEMORY) ---
+    // Instead of old AWS backend, we use the local/cloud userMapService
     let injectedMemoryContext = '';
-    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
-    if (contextInfo?.userId && BACKEND_URL && userKeys?.geminiKey) {
-        // Extract the last user message to use as the search query
-        const lastUserMessage = params.contents.slice().reverse().find((c: any) => c.role === 'user')?.parts?.[0]?.text;
+
+    if (contextInfo?.userId) {
+        const lastUserMessage = params.contents?.slice().reverse().find((c: any) => c.role === 'user')?.parts?.[0]?.text;
 
         if (lastUserMessage) {
             try {
-                const token = localStorage.getItem('auth_token');
-                const headers: any = { 'Content-Type': 'application/json' };
-                if (token) headers['Authorization'] = `Bearer ${token}`;
-
-                const res = await fetch(`${BACKEND_URL}/api/memory/search`, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify({
-                        userId: contextInfo.userId,
-                        agentId: contextInfo.agentId,
-                        query: lastUserMessage,
-                        apiKey: userKeys.geminiKey,
-                        limit: 3 // Inject top 3 most relevant memories
-                    })
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.results && data.results.length > 0) {
-                        const facts = data.results.map((r: any) => `- ${r.content}`).join('\n');
-                        injectedMemoryContext = `\n\n=== LONG-TERM MEMORY (RELEVANT FACTS) ===\n${facts}\n=========================================\n`;
-                    }
+                const facts = await userMapService.getRelevantContext(contextInfo.userId, lastUserMessage);
+                if (facts) {
+                    injectedMemoryContext = facts;
                 }
             } catch (e) {
-                console.error('[AWS Memory Search API Error]', e);
+                console.error('[UserMap Memory Search Error]', e);
             }
         }
     }
@@ -80,203 +66,69 @@ export async function hybridGenerateContent(
         params.config = params.config || {};
         params.config.systemInstruction = (params.config.systemInstruction || '') + injectedMemoryContext;
     }
-    // ---------------------------------------
+    // ----------------------------------------------
 
     for (let i = 0; i < maxRetries; i++) {
         try {
-            // Rate limit check
-            const rateCheck = canMakeRequest(provider);
+            const rateCheck = canMakeRequest('google');
             if (!rateCheck.allowed) {
                 const secs = Math.ceil((rateCheck.retryAfterMs || 5000) / 1000);
-                throw new Error(`Slow down! Too many requests. Try again in ${secs} seconds.`);
+                throw new Error(`Rate limit hit. Please wait ${secs} seconds.`);
             }
-            recordRequest(provider);
+            recordRequest('google');
 
-            // ========== GOOGLE (Gemini) ==========
-            if (provider === 'google') {
-                const apiKey = userKeys?.geminiKey;
-                if (!apiKey) throw new Error('Gemini API key required. Add it in User Profile → API Keys.');
+            // ========== GEMINI (Platform Managed) ==========
+            const apiKey = PLATFORM_GEMINI_KEY;
+            if (!apiKey) throw new Error('[RamN] Platform Gemini key not configured. Contact support.');
 
-                const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${apiKey}`;
-                const payload: any = {
-                    contents: params.contents,
-                    systemInstruction: params.config?.systemInstruction ? { parts: [{ text: params.config.systemInstruction }] } : undefined,
-                    tools: params.config?.tools,
-                    generationConfig: params.config?.thinkingConfig ? { thinkingConfig: params.config.thinkingConfig } : undefined
-                };
+            // Context Caching: if cachedContent ID is passed, use it to skip re-sending large context
+            const cachedContentId: string | undefined = params.cachedContentId;
 
-                const response = await fetch(targetUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    const errText = await response.text();
-                    if (errText.includes('API_KEY_INVALID')) throw new Error('Your Gemini API key is invalid. Please check it in User Profile.');
-                    if (errText.includes('RESOURCE_EXHAUSTED') || response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
-                    try {
-                        const errObj = JSON.parse(errText);
-                        if (errObj.error && errObj.error.message) {
-                            if (errObj.error.message.includes("unexpected model name") || response.status === 400) {
-                                throw new Error("The agent's brain is misconfigured. Please update its model.");
-                            }
-                            throw new Error("Provider rejected the request. Please verify your settings and API keys.");
-                        }
-                    } catch (e) {
-                        if (e instanceof Error && e.message.startsWith('Google API:')) throw e;
-                    }
-                    throw new Error(`Google API encountered an issue. Please verify your model access or configuration.`);
+            const payload: any = {
+                contents: params.contents,
+                tools: params.config?.tools,
+                generationConfig: {
+                    ...(params.config?.thinkingConfig ? { thinkingConfig: params.config.thinkingConfig } : {}),
+                    temperature: 0.7,
+                    topP: 0.95,
                 }
+            };
 
-                const data = await response.json();
-                const part = data.candidates?.[0]?.content?.parts?.[0];
-                if (part?.functionCall) {
-                    return { functionCalls: [{ id: part.functionCall.name, name: part.functionCall.name, args: part.functionCall.args }], text: '' };
-                }
-                return { text: part?.text || '', candidates: data.candidates };
+            // If using a cached context, reference it — otherwise send full system instruction
+            if (cachedContentId) {
+                payload.cachedContent = cachedContentId;
+            } else {
+                payload.systemInstruction = params.config?.systemInstruction
+                    ? { parts: [{ text: params.config.systemInstruction }] }
+                    : undefined;
             }
 
-            // ========== OPENAI ==========
-            if (provider === 'openai') {
-                const apiKey = userKeys?.openAiKey;
-                if (!apiKey) throw new Error('OpenAI API key required. Add it in User Profile → API Keys.');
+            const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${params.model}:generateContent?key=${apiKey}`;
 
-                // Convert Gemini format to OpenAI format
-                const messages: any[] = [];
-                if (params.config?.systemInstruction) {
-                    messages.push({ role: 'system', content: params.config.systemInstruction });
-                }
-                for (const c of (params.contents || [])) {
-                    if (c.role === 'user' && c.parts?.[0]?.functionResponse) {
-                        messages.push({ role: 'tool', tool_call_id: c.parts[0].functionResponse.name, content: JSON.stringify(c.parts[0].functionResponse.response) });
-                    } else if (c.role === 'model' && c.parts?.[0]?.functionCall) {
-                        messages.push({
-                            role: 'assistant',
-                            tool_calls: [{ id: c.parts[0].functionCall.name, type: 'function', function: { name: c.parts[0].functionCall.name, arguments: JSON.stringify(c.parts[0].functionCall.args) } }]
-                        });
-                    } else {
-                        messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts?.[0]?.text || '' });
-                    }
-                }
+            const response = await fetch(targetUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-                let tools: any[] = [];
-                if (params.config?.tools?.[0]?.functionDeclarations) {
-                    tools = params.config.tools[0].functionDeclarations.map((t: any) => ({
-                        type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters }
-                    }));
-                }
-
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                    body: JSON.stringify({
-                        model: params.model,
-                        messages,
-                        ...(tools.length > 0 ? { tools } : {})
-                    })
-                });
-
-                if (!response.ok) {
-                    const errText = await response.text();
-                    if (response.status === 401) throw new Error('Your OpenAI API key is invalid. Please check it in User Profile.');
-                    if (response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
-                    try {
-                        const errObj = JSON.parse(errText);
-                        if (errObj.error && errObj.error.message) {
-                            if (response.status === 400 || errObj.error.message.includes("model")) {
-                                throw new Error("The agent's brain is misconfigured. Please update its model settings.");
-                            }
-                            throw new Error("Provider rejected the request. Please verify your settings and API keys.");
-                        }
-                    } catch (e) {
-                        if (e instanceof Error && e.message.startsWith('The agent')) throw e;
-                        if (e instanceof Error && e.message.startsWith('Provider')) throw e;
-                    }
-                    throw new Error(`OpenAI API encountered an issue. Please verify your model access or configuration.`);
-                }
-
-                const data = await response.json();
-                const choice = data.choices?.[0];
-                if (choice?.message?.tool_calls?.[0]) {
-                    const tc = choice.message.tool_calls[0];
-                    return { functionCalls: [{ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }], text: choice.message.content || '' };
-                }
-                return { text: choice?.message?.content || '' };
+            if (!response.ok) {
+                const errText = await response.text();
+                if (errText.includes('API_KEY_INVALID')) throw new Error('[RamN] Platform API key is invalid. Contact support.');
+                if (errText.includes('RESOURCE_EXHAUSTED')) throw new Error('Platform rate limit reached. Please try again in a moment.');
+                throw new Error(`Google API error: ${response.statusText}`);
             }
 
-            // ========== ANTHROPIC ==========
-            if (provider === 'anthropic') {
-                const apiKey = userKeys?.anthropicKey;
-                if (!apiKey) throw new Error('Anthropic API key required. Add it in User Profile → API Keys.');
-
-                const messages: any[] = [];
-                for (const c of (params.contents || [])) {
-                    messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: c.parts?.[0]?.text || '' });
-                }
-
-                let tools: any[] = [];
-                if (params.config?.tools?.[0]?.functionDeclarations) {
-                    tools = params.config.tools[0].functionDeclarations.map((t: any) => ({
-                        name: t.name, description: t.description, input_schema: t.parameters
-                    }));
-                }
-
-                const response = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01',
-                        'anthropic-dangerous-direct-browser-access': 'true'
-                    },
-                    body: JSON.stringify({
-                        model: params.model,
-                        max_tokens: 4096,
-                        system: params.config?.systemInstruction || '',
-                        messages,
-                        ...(tools.length > 0 ? { tools } : {})
-                    })
-                });
-
-                if (!response.ok) {
-                    const errText = await response.text();
-                    if (response.status === 401) throw new Error('Your Anthropic API key is invalid. Please check it in User Profile.');
-                    if (response.status === 429) throw new Error('RESOURCE_EXHAUSTED');
-                    try {
-                        const errObj = JSON.parse(errText);
-                        if (errObj.error && errObj.error.message) {
-                            if (response.status === 400 || errObj.error.message.includes("model")) {
-                                throw new Error("The agent's brain is misconfigured. Please update its model settings.");
-                            }
-                            throw new Error("Provider rejected the request. Please verify your settings and API keys.");
-                        }
-                    } catch (e) {
-                        if (e instanceof Error && e.message.startsWith('The agent')) throw e;
-                        if (e instanceof Error && e.message.startsWith('Provider')) throw e;
-                    }
-                    throw new Error(`Anthropic API encountered an issue. Please verify your model access or configuration.`);
-                }
-
-                const data = await response.json();
-                const toolUse = data.content?.find((b: any) => b.type === 'tool_use');
-                if (toolUse) {
-                    return { functionCalls: [{ id: toolUse.id, name: toolUse.name, args: toolUse.input }], text: data.content?.find((b: any) => b.type === 'text')?.text || '' };
-                }
-                return { text: data.content?.find((b: any) => b.type === 'text')?.text || '' };
+            const data = await response.json();
+            const part = data.candidates?.[0]?.content?.parts?.[0];
+            if (part?.functionCall) {
+                return { functionCalls: [{ id: part.functionCall.name, name: part.functionCall.name, args: part.functionCall.args }], text: '' };
             }
-
-            throw new Error(`Unsupported provider for model: ${params.model}`);
+            return { text: part?.text || '', candidates: data.candidates };
 
         } catch (error: any) {
             lastError = error;
-            const errorMessage = error.message || "";
-            const isQuotaError = errorMessage.includes("RESOURCE_EXHAUSTED") || errorMessage.includes("429");
-
-            if (isQuotaError && i < maxRetries - 1) {
-                const delay = Math.pow(2, i) * 2000 + Math.random() * 1000;
-                console.warn(`API Quota reached. Retrying attempt ${i + 1} in ${Math.round(delay)}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+            if (error.message.includes("RESOURCE_EXHAUSTED") && i < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
                 continue;
             }
             throw error;
@@ -285,107 +137,39 @@ export async function hybridGenerateContent(
     throw lastError;
 }
 
-
 const TOOL_SAFETY_MAP: Record<string, 'READ_ONLY' | 'ACTION'> = {
     executeSearch: 'READ_ONLY',
-    executeMapsLookup: 'READ_ONLY',
-    fabricateAgent: 'ACTION',
-    fabricateTeam: 'ACTION',
+    executeMarketResearch: 'READ_ONLY',
     generateVisualAsset: 'ACTION',
-    generateMotionClip: 'ACTION'
+    fabricateAgent: 'ACTION',
+    fabricateTeam: 'ACTION'
 };
 
 const CAPABILITY_TOOLS: Record<string, FunctionDeclaration> = {
     googleSearch: {
         name: 'executeSearch',
-        description: 'Query the live web for intelligence, news, and technical data. Use for real-time verification.',
+        description: 'Query the live web for real-time intelligence.',
         parameters: {
             type: Type.OBJECT,
-            properties: {
-                query: { type: Type.STRING, description: 'The specific search query.' }
-            },
+            properties: { query: { type: Type.STRING } },
             required: ['query']
         }
     },
-    googleMaps: {
-        name: 'executeMapsLookup',
-        description: 'Access geospatial data for location intelligence.',
+    marketResearch: {
+        name: 'executeMarketResearch',
+        description: 'Deep analyze industry trends, competitors, and sentiment.',
         parameters: {
             type: Type.OBJECT,
-            properties: {
-                location: { type: Type.STRING, description: 'Target area or address.' },
-                placeType: { type: Type.STRING, description: 'Category of place (e.g. tech hub, cafe).' }
-            },
-            required: ['location', 'placeType']
-        }
-    },
-    fabricateAgent: {
-        name: 'fabricateAgent',
-        description: 'Instantiate a single specialized autonomous unit. You provide the profile, user picks the brain.',
-        parameters: {
-            type: Type.OBJECT,
-            properties: {
-                name: { type: Type.STRING, description: 'Agent name.' },
-                role: { type: Type.STRING, description: 'Agent role title.' },
-                jobDescription: {
-                    type: Type.STRING,
-                    description: 'MANDATORY: Must use headers: # Role & Objective, # Context, # Instructions / Rules, # Conversation Flow, # Safety & Escalation.'
-                },
-                modelId: { type: Type.STRING, description: 'MANDATORY: Give the specific AI model string. Follow guidelines specified in system prompt based on user API keys.' },
-                icon: { type: Type.STRING, description: 'Single emoji icon.' },
-                capabilities: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Enabled tools.' },
-                tools: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { toolId: { type: Type.STRING, description: 'Tool ID from catalog' }, endpoints: { type: Type.ARRAY, items: { type: Type.STRING }, description: 'Endpoint names to enable' } }, required: ['toolId', 'endpoints'] }, description: 'External API tools from the catalog to attach to this agent.' }
-            },
-            required: ['name', 'role', 'jobDescription', 'modelId', 'icon']
-        }
-    },
-    fabricateTeam: {
-        name: 'fabricateTeam',
-        description: 'Instantiate a coordinated squad of specialists for multi-stage objectives.',
-        parameters: {
-            type: Type.OBJECT,
-            properties: {
-                teamName: { type: Type.STRING },
-                objective: { type: Type.STRING },
-                specialists: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            name: { type: Type.STRING },
-                            role: { type: Type.STRING },
-                            jobDescription: { type: Type.STRING, description: 'MANDATORY: Follow the 5-section system prompt format.' },
-                            modelId: { type: Type.STRING, description: 'MANDATORY: Ensure model selection adheres strictly to user API configurations.' },
-                            icon: { type: Type.STRING },
-                            capabilities: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            tools: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { toolId: { type: Type.STRING }, endpoints: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ['toolId', 'endpoints'] } }
-                        },
-                        required: ['name', 'role', 'jobDescription', 'modelId', 'icon']
-                    }
-                }
-            },
-            required: ['teamName', 'objective', 'specialists']
+            properties: { topic: { type: Type.STRING } },
+            required: ['topic']
         }
     },
     imageGeneration: {
         name: 'generateVisualAsset',
-        description: 'Create high-fidelity images via latent space synthesis.',
+        description: 'Create high-fidelity images via DALL-E or Imagen.',
         parameters: {
             type: Type.OBJECT,
-            properties: {
-                prompt: { type: Type.STRING, description: 'Detailed visual prompt.' }
-            },
-            required: ['prompt']
-        }
-    },
-    videoGeneration: {
-        name: 'generateMotionClip',
-        description: 'Generate short video clips via VEO.',
-        parameters: {
-            type: Type.OBJECT,
-            properties: {
-                prompt: { type: Type.STRING, description: 'Motion narrative prompt.' }
-            },
+            properties: { prompt: { type: Type.STRING } },
             required: ['prompt']
         }
     }
@@ -397,58 +181,27 @@ export async function generateSingleAgentResponse(
     otherAgents: Agent[] = [],
     assignedTasks?: string[],
     responseMode: 'CHAT' | 'SOLUTION' | 'TASK' = 'CHAT',
-    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string },
+    _userKeys?: any, // kept for signature compat — ignored
     userId?: string
 ): Promise<MessageContent | null> {
 
     const caps = agent.capabilities || [];
-    let systemPrompt = `You are ${agent.name}, ${agent.role}.\n\n`;
+    let systemPrompt = `You are ${agent.name}, ${agent.role}.\n\n[SYSTEM_INSTRUCTION]\n${agent.jobDescription}\n\n`;
 
-    if (agent.id === 'prism-core') {
-        // [PRISM ORCHESTRATION PROTOCOL] now resides in the base system prompt
-    }
-
-    systemPrompt += `[SYSTEM_INSTRUCTION]\n${agent.jobDescription}\n\n`;
-
-    if (agent.knowledgeBase && agent.knowledgeBase.length > 0) {
-        systemPrompt += `[KNOWLEDGE_BASE_CONTEXT]\nYou have access to the following strictly verified knowledge files uploaded by the user to your brain:\n`;
-        agent.knowledgeBase.forEach((doc, idx) => {
-            systemPrompt += `File ${idx + 1}: ${doc.name} (${doc.type}) - Located at: ${doc.url}\n`;
-        });
-        systemPrompt += `CRITICAL INSTRUCTION: When answering questions, prioritize the information contained in these files or their URLs if you are able to extract them. Since you are an expert agent, act as if this knowledge is natively yours.\n\n`;
-    }
-
-
-    if (caps.length > 0) {
-        // [TOOLS_PROTOCOL] now resides in the base system prompt for Prism, though others may still need a slimmed version.
-        if (agent.id !== 'prism-core') {
-            systemPrompt += `[TOOLS_PROTOCOL]\nAvailable Tools: ${caps.join(', ')}.\n- Preambles: Before using a tool, explain why it's necessary.\n- Usage: Trigger the function call immediately after reasoning.\n\n`;
-        }
+    // Inject UserMap context for stability and recall
+    if (userId) {
+        const lastMsg = history.length > 0 ? history[history.length - 1].content.text : '';
+        const userRecall = await userMapService.getRelevantContext(userId, lastMsg);
+        systemPrompt += userRecall;
     }
 
     try {
-        // Truncate chat history to prevent context window overflow
-        const MAX_HISTORY = 40;
-        const truncatedHistory = history.length > MAX_HISTORY ? history.slice(-MAX_HISTORY) : history;
-        if (history.length > MAX_HISTORY) {
-            console.warn(`Chat truncated: ${history.length} → ${MAX_HISTORY} messages`);
-        }
-
-        const contents = truncatedHistory.map(msg => ({
-            role: msg.type === 'user' ? 'user' : 'model',
-            parts: msg.content.type === 'text' ? [{ text: msg.content.text }] : [{ text: (msg.content as any).text || "" }]
+        const contents = history.map(msg => ({
+            role: MsgRole(msg.type),
+            parts: [{ text: (msg.content as any).text || "" }]
         }));
 
         const availableTools = caps.map(cap => CAPABILITY_TOOLS[cap]).filter(Boolean);
-        if (agent.id === 'prism-core') {
-            if (!availableTools.find(t => t.name === 'fabricateAgent')) availableTools.push(CAPABILITY_TOOLS.fabricateAgent);
-            if (!availableTools.find(t => t.name === 'fabricateTeam')) availableTools.push(CAPABILITY_TOOLS.fabricateTeam);
-        }
-
-        let contextInfo: any = undefined;
-        if (userId) {
-            contextInfo = { userId, agentId: agent.id };
-        }
 
         const response = await hybridGenerateContent({
             model: agent.model,
@@ -458,41 +211,19 @@ export async function generateSingleAgentResponse(
                 tools: availableTools.length > 0 ? [{ functionDeclarations: availableTools }] : undefined,
                 thinkingConfig: agent.model.includes('pro') ? { thinkingBudget: 32768 } : undefined
             }
-        }, userKeys, 3, contextInfo);
+        }, undefined, 3, { userId: userId || '', agentId: agent.id });
 
         if (response.functionCalls && response.functionCalls.length > 0) {
             const call = response.functionCalls[0];
-            const safety = TOOL_SAFETY_MAP[call.name] || 'ACTION';
-
-            if (safety === 'READ_ONLY') {
-                const toolOutput = await executeToolBackend(call, userKeys);
-                const finalResponse = await hybridGenerateContent({
-                    model: agent.model,
-                    contents: [
-                        ...contents,
-                        { role: 'model', parts: [{ functionCall: call }] },
-                        { role: 'user', parts: [{ functionResponse: { name: call.name, response: { result: toolOutput } } }] }
-                    ] as any,
-                    config: { systemInstruction: systemPrompt }
-                }, userKeys, 3, contextInfo);
-
-                return {
-                    type: 'text',
-                    text: finalResponse.text || "Operational.",
-                    mode: 'SOLUTION',
-                    groundingChunks: finalResponse.candidates?.[0]?.groundingMetadata?.groundingChunks
-                };
-            }
-
             return {
                 type: 'text',
-                text: response.text || "",
+                text: response.text || "Initiating tool sequence...",
                 mode: 'TASK_PROPOSAL',
                 toolCall: {
                     id: call.id || `call-${Date.now()}`,
                     name: call.name,
                     args: call.args,
-                    safetyType: 'ACTION'
+                    safetyType: TOOL_SAFETY_MAP[call.name] || 'ACTION'
                 }
             };
         }
@@ -504,9 +235,37 @@ export async function generateSingleAgentResponse(
         };
 
     } catch (error: any) {
-        let errorMsg = error.message || "Unknown error";
-        return { type: 'text', text: `⚠️ Operational Fault: ${errorMsg}` };
+        return { type: 'text', text: `⚠️ Operational Fault: ${error.message}` };
     }
+}
+
+function MsgRole(type: string): string {
+    return type === 'user' ? 'user' : 'model';
+}
+
+export async function generatePrismResponse(
+    history: Message[],
+    prismAgent: Agent,
+    setStatus: (s: string) => void,
+    _userKeys?: any, // kept for signature compat — ignored, platform managed
+    _availableProviders?: string,
+    userId?: string
+) {
+    setStatus("Refracting...");
+    const { model, provider } = resolvePrismModel();
+    let modifiedPrism = { ...prismAgent, model, provider };
+
+    // Inject tool catalog context if available
+    try {
+        const { getToolCatalog, getToolCatalogSummary } = await import('./toolService');
+        const catalog = await getToolCatalog();
+        if (catalog.length > 0) {
+            const catalogSummary = getToolCatalogSummary(catalog);
+            modifiedPrism.jobDescription += `\n\n[TOOL_CATALOG]\n${catalogSummary}`;
+        }
+    } catch { }
+
+    return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', undefined, userId);
 }
 
 export async function generateExpandedSolution(
@@ -535,29 +294,13 @@ export async function generateExpandedSolution(
     }
 }
 
-async function executeToolBackend(toolCall: any, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<any> {
-    if (toolCall.name === 'executeSearch') {
-        // Google Search grounding only works with Gemini models
-        if (userKeys?.geminiKey) {
-            const res = await hybridGenerateContent({
-                model: 'gemini-2.5-flash',
-                contents: [{ role: 'user', parts: [{ text: `Real-time search: ${toolCall.args.query}` }] }],
-                config: { tools: [{ googleSearch: {} }] }
-            }, userKeys);
-            return res.text;
-        }
-        return "⚠️ Live search requires a Gemini API key. The agent will respond using its existing knowledge instead.";
-    }
-    return "Operation complete.";
-}
-
 export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<MessageContent | null> {
     try {
         if (toolCall.name === 'generateVisualAsset') {
             // GEMINI — native image generation
             if (userKeys?.geminiKey) {
                 const response = await hybridGenerateContent({
-                    model: 'gemini-3-pro-image-preview',
+                    model: 'gemini-2.0-flash',
                     contents: [{ role: 'user', parts: [{ text: toolCall.args.prompt }] }]
                 }, userKeys);
                 const part = response.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
@@ -583,44 +326,10 @@ export async function executeInterceptedCommand(agent: Agent, toolCall: ToolCall
                     if (url) return { type: 'image', imageUrl: url, mimeType: 'image/png', text: 'Synthesis Resolved.' };
                 }
             }
-            // ANTHROPIC — no image generation
-            if (userKeys?.anthropicKey && !userKeys?.geminiKey && !userKeys?.openAiKey) {
-                return { type: 'text', text: '⚠️ Image generation is not available with Claude. Add a Gemini or OpenAI key to enable this feature.' };
-            }
             return { type: 'text', text: '⚠️ Image generation requires a valid Gemini or OpenAI API key.' };
         }
         return { type: 'text', text: "Operation committed." };
     } catch (e: any) {
         return { type: 'text', text: `⚠️ Command failed: ${e.message || 'Error'}` };
     }
-}
-
-export async function generatePrismResponse(
-    history: Message[],
-    prismAgent: Agent,
-    setStatus: (s: string) => void,
-    userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string },
-    availableProviders?: string,
-    userId?: string
-) {
-    setStatus("Refracting...");
-    const { model, provider } = resolvePrismModel(userKeys);
-    let modifiedPrism = { ...prismAgent, model, provider };
-
-    // Inject tool catalog context
-    try {
-        const { getToolCatalog, getToolCatalogSummary } = await import('./toolService');
-        const catalog = await getToolCatalog();
-        if (catalog.length > 0) {
-            const catalogSummary = getToolCatalogSummary(catalog);
-            modifiedPrism.jobDescription += `\n\n${catalogSummary}\n\nWhen fabricating agents, you SHOULD attach relevant tools from the catalog above using the 'tools' parameter. Each tool entry should have a 'toolId' (matching the catalog id) and an array of 'endpoints' (matching endpoint names from the catalog). This gives agents real-world capabilities beyond just conversation.`;
-        }
-    } catch { /* catalog unavailable — proceed without tools */ }
-
-    if (availableProviders && availableProviders.length > 0) {
-        modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user ONLY has access to the following AI Providers: ${availableProviders}. When fabricating agents or teams using tools, you MUST set the 'modelId' exclusively to one of the models from these providers.`;
-    } else {
-        modifiedPrism.jobDescription += `\n\n[USER API PROVIDERS]\nThe user has no external API keys configured. Guide them to add API keys in their User Profile.`;
-    }
-    return generateSingleAgentResponse(history, modifiedPrism, [], [], 'CHAT', userKeys, userId);
 }

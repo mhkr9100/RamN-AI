@@ -54,6 +54,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 };
 
+function extractUserIdFromToken(event: APIGatewayProxyEvent): string | null {
+    const authHeader = event.headers['Authorization'] || event.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    const token = authHeader.replace('Bearer ', '');
+    // In our beta, the mock JWT encodes the ID directly
+    if (token.startsWith('ramn-mock-jwt-')) {
+        return token.replace('ramn-mock-jwt-', '');
+    }
+    return null;
+}
+
 /**
  * Perform Cosine Similarity between vector A and vector B
  */
@@ -71,26 +82,42 @@ function cosineSimilarity(A: number[], B: number[]): number {
 }
 
 /**
- * Fetch embedding from Gemini using the provided API Key
+ * Fetch embedding from Gemini using the provided API Key with Exponential Backoff
  */
-async function fetchGeminiEmbedding(text: string, apiKey: string): Promise<number[]> {
+async function fetchGeminiEmbedding(text: string, apiKey: string, retries = 3): Promise<number[]> {
     const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`;
-    const res = await fetch(targetUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            model: 'models/text-embedding-004',
-            content: { parts: [{ text }] }
-        })
-    });
 
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Embedding generation failed: ${res.status} ${err}`);
+    let lastError;
+    for (let i = 0; i < retries; i++) {
+        try {
+            const res = await fetch(targetUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'models/text-embedding-004',
+                    content: { parts: [{ text }] }
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.text();
+                // If Rate Limited or Server Error, retry
+                if (res.status === 429 || res.status >= 500) {
+                    lastError = new Error(`Embedding generation retryable error: ${res.status} ${err}`);
+                    console.warn(`[MemoryAPI] Embedding fetch failed (attempt ${i + 1}/${retries}). Backing off...`);
+                    await new Promise(r => setTimeout(r, Math.random() * 1000 + Math.pow(2, i) * 1000));
+                    continue;
+                }
+                throw new Error(`Embedding generation fatal error: ${res.status} ${err}`);
+            }
+
+            const data: any = await res.json();
+            return data.embedding?.values || [];
+        } catch (error) {
+            lastError = error;
+        }
     }
-
-    const data: any = await res.json();
-    return data.embedding?.values || [];
+    throw lastError;
 }
 
 /**
@@ -102,6 +129,12 @@ async function handleAddMemory(event: APIGatewayProxyEvent): Promise<APIGatewayP
 
     if (!userId || !content || !apiKey) {
         return apiError(400, 'Missing userId, content, or apiKey');
+    }
+
+    const authenticatedId = extractUserIdFromToken(event);
+    if (!authenticatedId || authenticatedId !== userId) {
+        console.warn(`[Security] Unauthorized memory add attempt for user ${userId}`);
+        return apiError(403, 'Forbidden: Invalid or missing authorization token for this user');
     }
 
     // 1. Generate text embedding
@@ -146,6 +179,12 @@ async function handleSearchMemory(event: APIGatewayProxyEvent): Promise<APIGatew
 
     if (!userId || !query || !apiKey) {
         return apiError(400, 'Missing userId, query, or apiKey');
+    }
+
+    const authenticatedId = extractUserIdFromToken(event);
+    if (!authenticatedId || authenticatedId !== userId) {
+        console.warn(`[Security] Unauthorized memory search attempt for user ${userId}`);
+        return apiError(403, 'Forbidden: Invalid or missing authorization token for this user');
     }
 
     // 1. Generate text embedding of the query

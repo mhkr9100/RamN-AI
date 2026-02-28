@@ -147,44 +147,22 @@ export const useScatter = () => {
                     setTypingAgents(mentionedAgents.map(a => ({ agent: a, tasks: [], mode: 'CHAT' as const })));
 
                     await Promise.all(mentionedAgents.map(async (targetAgent) => {
-                        const userKeys = getUserKeys();
-                        if (targetAgent.id !== 'prism-core' && !userKeys.openAiKey && !userKeys.anthropicKey && !userKeys.geminiKey) {
-                            addMessage(chatId, { id: `msg-${Date.now()}-${targetAgent.id}`, userId: currentUser.id, agent: targetAgent, content: { type: 'text', text: "⚠️ **API Key Required**: Please add your API key in your User Profile." }, type: 'agent' });
-                            return;
-                        }
-                        const response = await generateSingleAgentResponse(currentSnapshot, targetAgent, team.agents, [], 'CHAT', userKeys, currentUser?.id);
+                        const response = await generateSingleAgentResponse(currentSnapshot, targetAgent, team.agents, [], 'CHAT', undefined, currentUser?.id);
                         if (response) addMessage(chatId, { id: `msg-${Date.now()}-${targetAgent.id}`, userId: currentUser.id, agent: targetAgent, content: response, type: 'agent' });
                     }));
                 } else {
                     setPrismStatus("No mention detected. Consulting Core...");
-                    const userKeys = getUserKeys();
-                    let availableProviders = "";
-                    if (userKeys.openAiKey) availableProviders += "OpenAI, ";
-                    if (userKeys.anthropicKey) availableProviders += "Anthropic, ";
-                    if (userKeys.geminiKey) availableProviders += "Gemini.";
-                    const response = await generatePrismResponse(currentSnapshot, AGENTS.PRISM, setPrismStatus, userKeys, availableProviders, currentUser?.id);
+                    const response = await generatePrismResponse(currentSnapshot, AGENTS.PRISM, setPrismStatus, undefined, undefined, currentUser?.id);
                     if (response) addMessage(chatId, { id: `msg-${Date.now()}`, userId: currentUser.id, agent: AGENTS.PRISM, content: response, type: 'agent' });
                 }
             } else if (agent || chatId === 'prism-core') {
                 const target = agent || AGENTS.PRISM;
-                const userKeys = getUserKeys();
-
-                if (target.id !== 'prism-core' && !userKeys.openAiKey && !userKeys.anthropicKey && !userKeys.geminiKey) {
-                    addMessage(chatId, { id: `msg-${Date.now()}`, userId: currentUser.id, agent: target, content: { type: 'text', text: "⚠️ **API Key Required**: Please add your API key in your User Profile." }, type: 'agent' });
-                    setActiveRequests(prev => prev - 1);
-                    return;
-                }
-
                 setTypingAgent(target);
                 let response;
                 if (target.id === 'prism-core') {
-                    let availableProviders = "";
-                    if (userKeys.openAiKey) availableProviders += "OpenAI, ";
-                    if (userKeys.anthropicKey) availableProviders += "Anthropic, ";
-                    if (userKeys.geminiKey) availableProviders += "Gemini.";
-                    response = await generatePrismResponse(currentSnapshot, target, setPrismStatus, userKeys, availableProviders, currentUser?.id);
+                    response = await generatePrismResponse(currentSnapshot, target, setPrismStatus, undefined, undefined, currentUser?.id);
                 } else {
-                    response = await generateSingleAgentResponse(currentSnapshot, target, [], [], 'CHAT', userKeys, currentUser?.id);
+                    response = await generateSingleAgentResponse(currentSnapshot, target, [], [], 'CHAT', undefined, currentUser?.id);
                 }
 
                 if (response) addMessage(chatId, { id: `msg-${Date.now()}`, userId: currentUser.id, agent: target, content: response, type: 'agent' });

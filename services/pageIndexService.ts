@@ -4,11 +4,11 @@
  */
 
 export interface PageNode {
-    id: string;
-    label: string;
-    value?: string;
-    source?: string;
-    children: PageNode[];
+  id: string;
+  label: string;
+  value?: string;
+  source?: string;
+  children: PageNode[];
 }
 
 const STRUCTURING_PROMPT = `You are a Context Structurer. Given a list of raw memory facts about a user, organize them into a clean hierarchical JSON tree.
@@ -35,37 +35,37 @@ RULES:
 }`;
 
 export class PageIndexService {
-    /**
-     * Takes raw memories (flat strings) and structures them into a PageNode tree.
-     * Uses hybridGenerateContent directly (no server proxy needed).
-     */
-    async consolidate(memories: string[], existingTree?: PageNode, userKeys?: { openAiKey?: string, anthropicKey?: string, geminiKey?: string }): Promise<PageNode> {
-        const { hybridGenerateContent, resolvePrismModel } = await import('./aiService');
-        const memoryList = memories.map((m, i) => `${i + 1}. ${m}`).join('\n');
+  /**
+   * Takes raw memories (flat strings) and structures them into a PageNode tree.
+   * Uses hybridGenerateContent directly (no server proxy needed).
+   */
+  async consolidate(memories: string[], existingTree?: PageNode): Promise<PageNode> {
+    const { hybridGenerateContent, resolvePrismModel } = await import('./aiService');
+    const memoryList = memories.map((m, i) => `${i + 1}. ${m}`).join('\n');
 
-        let prompt = `Here are the user's raw memory facts:\n\n${memoryList}`;
-        if (existingTree) {
-            prompt += `\n\nHere is the existing UserMap tree to merge into:\n${JSON.stringify(existingTree, null, 2)}`;
-            prompt += `\n\nMerge the new facts into the existing tree. Remove duplicates. Add new categories if needed.`;
-        } else {
-            prompt += `\n\nCreate a new UserMap tree from these facts.`;
-        }
-
-        const { model } = resolvePrismModel(userKeys);
-        const res = await hybridGenerateContent({
-            model,
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            config: { systemInstruction: STRUCTURING_PROMPT }
-        }, userKeys);
-
-        const text = res.text || '';
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Failed to parse structured tree from LLM response');
-        }
-
-        return JSON.parse(jsonMatch[0]) as PageNode;
+    let prompt = `Here are the user's raw memory facts:\n\n${memoryList}`;
+    if (existingTree) {
+      prompt += `\n\nHere is the existing UserMap tree to merge into:\n${JSON.stringify(existingTree, null, 2)}`;
+      prompt += `\n\nMerge the new facts into the existing tree. Remove duplicates. Add new categories if needed.`;
+    } else {
+      prompt += `\n\nCreate a new UserMap tree from these facts.`;
     }
+
+    const { model } = resolvePrismModel();
+    const res = await hybridGenerateContent({
+      model,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { systemInstruction: STRUCTURING_PROMPT }
+    });
+
+    const text = res.text || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Failed to parse structured tree from LLM response');
+    }
+
+    return JSON.parse(jsonMatch[0]) as PageNode;
+  }
 }
 
 export const pageIndexService = new PageIndexService();
