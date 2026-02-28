@@ -55,6 +55,17 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
     }
 };
 
+function extractUserIdFromToken(event: APIGatewayProxyEvent): string | null {
+    const authHeader = event.headers['Authorization'] || event.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+    const token = authHeader.replace('Bearer ', '');
+    // In our beta, the mock JWT encodes the ID directly
+    if (token.startsWith('ramn-mock-jwt-')) {
+        return token.replace('ramn-mock-jwt-', '');
+    }
+    return null;
+}
+
 /**
  * Handle POST / PUT
  * Expects { store: string, item: object }
@@ -67,6 +78,15 @@ async function handlePut(event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
 
     if (!store || !item || !item.id) {
         return apiError(400, 'Missing store, item, or item.id');
+    }
+
+    // Security: Verify user identity if userId is provided
+    if (item.userId) {
+        const authenticatedId = extractUserIdFromToken(event);
+        if (!authenticatedId || authenticatedId !== item.userId) {
+            console.warn(`[Security] Unauthorized DB put attempt for user ${item.userId}`);
+            return apiError(403, 'Forbidden: Invalid or missing authorization token for this user');
+        }
     }
 
     // Partition key strategy: Group by user if possible
@@ -100,6 +120,15 @@ async function handleGet(event: APIGatewayProxyEvent): Promise<APIGatewayProxyRe
 
     if (!store) {
         return apiError(400, 'Missing store query parameter');
+    }
+
+    // Security: Verify user identity if userId is provided
+    if (userId) {
+        const authenticatedId = extractUserIdFromToken(event);
+        if (!authenticatedId || authenticatedId !== userId) {
+            console.warn(`[Security] Unauthorized DB get attempt for user ${userId}`);
+            return apiError(403, 'Forbidden: Invalid or missing authorization token for this user');
+        }
     }
 
     if (id) {
@@ -141,6 +170,15 @@ async function handleDelete(event: APIGatewayProxyEvent): Promise<APIGatewayProx
 
     if (!store || !id) {
         return apiError(400, 'Missing store or id query parameter');
+    }
+
+    // Security: Verify user identity if userId is provided
+    if (userId) {
+        const authenticatedId = extractUserIdFromToken(event);
+        if (!authenticatedId || authenticatedId !== userId) {
+            console.warn(`[Security] Unauthorized DB delete attempt for user ${userId}`);
+            return apiError(403, 'Forbidden: Invalid or missing authorization token for this user');
+        }
     }
 
     const pk = userId ? `USER#${userId}` : `STORE#${store}`;
