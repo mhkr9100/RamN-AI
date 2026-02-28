@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { XMarkIcon } from './icons/XMarkIcon';
 import { LoadingSpinner } from './LoadingSpinner';
 import { Agent } from '../types';
@@ -31,11 +31,14 @@ export const InputBar: React.FC<InputBarProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredCandidates = (mentionCandidates || []).filter(c =>
+  // ⚡ BOLT OPTIMIZATION: Memoize filtered candidates list.
+  // Prevents redundant O(N) filtering of the agent roster on every keystroke.
+  // Impact: Improves input latency and reduces main-thread work during agent mentions.
+  const filteredCandidates = useMemo(() => (mentionCandidates || []).filter(c =>
     c && c.name && typeof c.name === 'string' &&
     c.name.toLowerCase().includes((mentionFilter || '').toLowerCase()) &&
     c.id !== 'prism-core' && c.id !== 'prism-core-member'
-  );
+  ), [mentionCandidates, mentionFilter]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
