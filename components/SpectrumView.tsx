@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { AIModelProfile, AgentTemplate, Agent, Team, UserProfile } from '../types';
+import { SPECIAL_AGENT_TEMPLATES } from '../constants';
 import { ToolsView } from './ToolsView';
 import { ModelsView } from './ModelsView';
 
@@ -142,17 +143,52 @@ export const SpectrumView: React.FC<SpectrumViewProps> = ({ onHire, onFabricateA
                     </div>
                 </div>
 
-                {/* SECTION 2: SPECIAL AGENTS (Placeholder) */}
+                {/* SECTION 2: SPECIAL AGENTS */}
                 <div className="min-w-full snap-start p-8 overflow-y-auto custom-scrollbar">
                     <div className="max-w-5xl mx-auto">
                         <div className="mb-8 flex items-center gap-4">
                             <h3 className="text-xs font-black text-white/40 uppercase tracking-[0.3em]">Special Agents</h3>
                             <div className="h-px flex-1 bg-white/5" />
+                            <span className="text-[9px] text-white/20 font-mono tracking-widest">{SPECIAL_AGENT_TEMPLATES.length} BLUEPRINTS</span>
                         </div>
-                        <div className="flex flex-col items-center justify-center p-16 bg-white/[0.01] border border-white/5 rounded-2xl">
-                            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10 text-2xl">🤖</div>
-                            <h4 className="text-white/40 font-black uppercase tracking-widest text-xs mb-2">Coming Soon</h4>
-                            <p className="text-white/20 text-[10px] text-center max-w-sm">Pre-built specialist agents for common tasks will appear here.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {SPECIAL_AGENT_TEMPLATES.map(template => (
+                                <div key={template.id} className="group bg-black/40 border border-white/5 rounded-2xl p-5 hover:border-white/20 transition-all duration-300 flex flex-col">
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center text-xl group-hover:scale-105 transition-transform">
+                                            {template.icon}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-[12px] font-black text-white uppercase tracking-tight truncate">{template.name}</h4>
+                                            <p className="text-[9px] text-indigo-400/50 font-mono uppercase tracking-tighter truncate">{template.role}</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-[11px] text-white/30 leading-relaxed mb-3 flex-1">{template.description}</p>
+                                    <div className="flex flex-wrap gap-1.5 mb-4">
+                                        {template.defaultTools.map(tool => (
+                                            <span key={tool} className="text-[8px] px-2 py-0.5 bg-indigo-500/10 text-indigo-300/60 rounded border border-indigo-500/20 uppercase tracking-wider font-bold">
+                                                {tool}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            // Navigate to Prism chat and inject context request
+                                            onOpenChat('prism-core');
+                                            // Small delay to let navigation happen, then inject
+                                            setTimeout(() => {
+                                                const event = new CustomEvent('prism-special-agent', {
+                                                    detail: { templateId: template.id, templateName: template.name, templateRole: template.role }
+                                                });
+                                                window.dispatchEvent(event);
+                                            }, 300);
+                                        }}
+                                        className="w-full py-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[9px] font-black uppercase tracking-widest rounded-lg border border-white/10 hover:border-white/20 transition-all active:scale-[0.98]"
+                                    >
+                                        + Add via Prism
+                                    </button>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>

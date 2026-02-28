@@ -34,8 +34,7 @@ export const useAgentExecution = (
         };
         setChatHistory(prev => ({ ...prev, [activeChatId]: updatedHistory }));
 
-        const userKeys = getUserKeys();
-        const solutionText = await generateExpandedSolution(history.slice(0, msgIndex + 1), messageToExpand.agent, userKeys);
+        const solutionText = await generateExpandedSolution(history.slice(0, msgIndex + 1), messageToExpand.agent);
 
         setChatHistory(prev => {
             const current = [...(prev[activeChatId] || [])];
@@ -128,8 +127,7 @@ export const useAgentExecution = (
         };
         setChatHistory(prev => ({ ...prev, [activeChatId]: updatedHistory }));
 
-        const userKeys = getUserKeys();
-        const result = await executeInterceptedCommand(updatedHistory[msgIndex].agent, toolCall, userKeys);
+        const result = await executeInterceptedCommand(updatedHistory[msgIndex].agent, toolCall);
 
         if (result) {
             addMessage(activeChatId, {
