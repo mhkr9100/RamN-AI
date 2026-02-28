@@ -2,7 +2,6 @@
 import { GoogleGenAI, Type, Modality, FunctionDeclaration, GenerateContentResponse } from "@google/genai";
 import { Message, Agent, MessageContent, Task, GroundingChunk, AgentCapability, ToolCall } from "../types";
 import { AGENTS, AI_RESUMES, VAULT } from "../constants";
-import { canMakeRequest, recordRequest } from "./rateLimiter";
 import { userMapService } from "./userMapService";
 import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 
@@ -85,12 +84,8 @@ export async function hybridGenerateContent(
 
     for (let i = 0; i < maxRetries; i++) {
         try {
-            const rateCheck = canMakeRequest('google');
-            if (!rateCheck.allowed) {
-                const secs = Math.ceil((rateCheck.retryAfterMs || 5000) / 1000);
-                throw new Error(`Rate limit hit. Please wait ${secs} seconds.`);
-            }
-            recordRequest('google');
+            // Rate limiting is now enforced per-user in useScatter.handleSendMessage
+
 
             // ========== ROUTE BY PROVIDER ==========
             if (provider === 'aws') {

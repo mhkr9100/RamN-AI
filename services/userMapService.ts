@@ -1,31 +1,37 @@
 
 /**
- * UserMapService: Orchestrates the "Long-term Context Memory" for Users.
+ * UserMapService: Cloud-First Long-term Context Memory for Users.
  * 
- * Logic:
- * 1. Capture user interactions/profiles.
- * 2. Embed these into a Vector DB (or local persistent storage for Beta).
- * 3. Before each AI call, retrieve the most relevant context snippets.
- * 4. Inject into the AI's system prompt (Prism context).
+ * Architecture:
+ * 1. Captures user interactions/profiles.
+ * 2. Sends to Backend → Gemini Embedding API → DynamoDB (with embedding vectors).
+ * 3. Before each AI call, queries backend for semantically relevant context.
+ * 4. Injects into the AI's system prompt (Prism context).
+ * 
+ * Falls back to local in-memory storage if backend is unavailable.
  */
 
 import { Message } from "../types";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 export interface UserContextItem {
     id: string;
     userId: string;
     content: string;
-    category: 'profile' | 'preference' | 'task_history' | 'technical_spec';
+    category: 'profile' | 'preference' | 'task_history' | 'technical_spec' | 'general';
     timestamp: number;
     embedding?: number[];
 }
 
 class UserMapService {
     private static instance: UserMapService;
-    private memory: UserContextItem[] = []; // Temporary in-memory for Beta (should sync with Firestore/Dynamo)
+    private memoryCache: UserContextItem[] = []; // In-session cache for fast lookups
+    private lastSearchCache: Map<string, { result: string; timestamp: number }> = new Map();
+    private CACHE_TTL_MS = 60_000; // 1 minute cache for repeated queries
 
     private constructor() {
-        this.loadLocalMemory();
+        this.loadLocalFallback();
     }
 
     public static getInstance() {
@@ -37,6 +43,8 @@ class UserMapService {
 
     /**
      * Store a new piece of context about the user.
+     * Cloud-first: sends to /api/memory/add for embedding + DynamoDB storage.
+     * Falls back to local storage if backend unavailable.
      */
     async recordContext(userId: string, content: string, category: UserContextItem['category']) {
         const newItem: UserContextItem = {
@@ -47,67 +55,128 @@ class UserMapService {
             timestamp: Date.now()
         };
 
-        this.memory.push(newItem);
-        this.saveToLocalMemory();
+        // Add to session cache
+        this.memoryCache.push(newItem);
 
-        // [FUTURE: Sync with Firestore Vector Search here]
-        // This is where "Prism" gets its long term memory.
-        console.log(`[UserMap] Recorded ${category} for ${userId}: ${content.substring(0, 50)}...`);
+        // Cloud-first
+        if (BACKEND_URL) {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                await fetch(`${BACKEND_URL}/api/memory/add`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ userId, content, category })
+                });
+            } catch (e) {
+                console.error('[UserMap Cloud Error]', e);
+            }
+        }
+
+        // Local fallback persistence
+        this.saveLocalFallback();
     }
 
     /**
      * Retrieve relevant context for a query.
-     * Currently uses simple keyword/relevance match for Beta.
-     * [UPGRADE: Implement Vector Similarity Search]
+     * Cloud-first: uses /api/memory/search for vector similarity search.
+     * Falls back to local recency-based matching.
      */
     async getRelevantContext(userId: string, query: string, limit = 5): Promise<string> {
-        // Filter by user
-        const userMemory = this.memory.filter(m => m.userId === userId);
+        // Check cache first
+        const cacheKey = `${userId}:${query.substring(0, 100)}`;
+        const cached = this.lastSearchCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+            return cached.result;
+        }
 
-        if (userMemory.length === 0) return '';
+        let contextString = '';
 
-        // Simple relevance matching (for now)
-        // [TODO: Integration with Embedding API]
-        const relevant = userMemory
-            .sort((a, b) => b.timestamp - a.timestamp) // Latest first for now
-            .slice(0, limit);
+        // Cloud-first: vector similarity search
+        if (BACKEND_URL) {
+            try {
+                const token = localStorage.getItem('auth_token');
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        if (relevant.length === 0) return '';
+                const res = await fetch(`${BACKEND_URL}/api/memory/search`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ userId, query, limit })
+                });
 
-        const contextString = relevant
-            .map(m => `[${m.category.toUpperCase()}] ${m.content}`)
-            .join('\n');
+                if (res.ok) {
+                    const data = await res.json();
+                    const results = data.results || [];
+                    if (results.length > 0) {
+                        contextString = results
+                            .map((r: any) => `[${(r.category || 'CONTEXT').toUpperCase()}] ${r.content}`)
+                            .join('\n');
+                    }
+                }
+            } catch (e) {
+                console.warn('[UserMap Cloud Search Fallback]', e);
+            }
+        }
 
-        return `\n=== USER_MAP_RECALL (Prism Memory) ===\n${contextString}\n=======================================\n`;
+        // Fallback: local recency-based
+        if (!contextString) {
+            const userMemory = this.memoryCache.filter(m => m.userId === userId);
+            if (userMemory.length === 0) return '';
+
+            const relevant = userMemory
+                .sort((a, b) => b.timestamp - a.timestamp)
+                .slice(0, limit);
+
+            if (relevant.length === 0) return '';
+
+            contextString = relevant
+                .map(m => `[${m.category.toUpperCase()}] ${m.content}`)
+                .join('\n');
+        }
+
+        if (!contextString) return '';
+
+        const result = `\n=== USER_MAP_RECALL (Prism Memory) ===\n${contextString}\n=======================================\n`;
+
+        // Cache the result
+        this.lastSearchCache.set(cacheKey, { result, timestamp: Date.now() });
+
+        return result;
     }
 
     /**
-     * Load memory from local storage (Persistence for Beta).
+     * Load from local storage (fallback persistence).
      */
-    private loadLocalMemory() {
+    private loadLocalFallback() {
         try {
             const data = localStorage.getItem('ramn_user_map');
             if (data) {
-                this.memory = JSON.parse(data);
+                this.memoryCache = JSON.parse(data);
             }
         } catch (e) {
-            this.memory = [];
+            this.memoryCache = [];
         }
     }
 
     /**
-     * Persist memory to local storage.
+     * Persist to local storage (fallback).
      */
-    private saveToLocalMemory() {
-        localStorage.setItem('ramn_user_map', JSON.stringify(this.memory));
+    private saveLocalFallback() {
+        // Keep only last 200 items locally to avoid storage bloat
+        const trimmed = this.memoryCache.slice(-200);
+        localStorage.setItem('ramn_user_map', JSON.stringify(trimmed));
     }
 
     /**
      * Wipe all user context (Privacy first).
      */
     clearMemory(userId: string) {
-        this.memory = this.memory.filter(m => m.userId !== userId);
-        this.saveToLocalMemory();
+        this.memoryCache = this.memoryCache.filter(m => m.userId !== userId);
+        this.lastSearchCache.clear();
+        this.saveLocalFallback();
     }
 }
 

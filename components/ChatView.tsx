@@ -4,6 +4,7 @@ import { ChatInterface } from './ChatInterface';
 import { InputBar } from './InputBar';
 import { ScatterBottleVisual } from './ScatterBottleVisual';
 import { Message, Agent as AgentType, CustomGroupSuggestion, ToolCall, Team, GlobalTask } from '../types';
+import { RateLimitInfo } from '../hooks/useScatter';
 
 interface ChatSession {
   id: string;
@@ -33,6 +34,7 @@ interface ChatViewProps {
   activeChatId?: string;
   activeAgent?: AgentType;
   activeTeam?: Team;
+  rateLimitInfo?: RateLimitInfo;
   // Session controls
   sessions?: ChatSession[];
   activeSessionId?: string;
@@ -42,6 +44,7 @@ interface ChatViewProps {
 
 export const ChatView: React.FC<ChatViewProps> = ({
   messages, isLoading, typingAgent, typingAgents = [], onSubmit, onAddAgent, onCreateTeam, onExecuteCommand, onExpandMessage, onSaveToTasks, onInjectSystemMessage, mentionCandidates, onConfigureNewAgent, onDeployCustomTeam, prismStatus, isGroup = false, orchestrationWeights = {}, agentModes = {}, activeChatId, activeAgent, activeTeam,
+  rateLimitInfo,
   sessions = [], activeSessionId = '', onResumeSession, onStartNewSession
 }) => {
   const isDispatching = prismStatus !== "";
@@ -49,6 +52,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const canOpenLiveSpace = (activeAgent?.isLiveSpaceEnabled) || (activeTeam?.isLiveSpaceEnabled);
   const isPrism = activeChatId === 'prism-core';
+  const isRateLimited = rateLimitInfo?.blocked ?? false;
 
   return (
     <div className="flex flex-col h-full w-full relative">
@@ -105,10 +109,36 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
+      {/* Rate Limit Banner */}
+      {isRateLimited && rateLimitInfo && (
+        <div className="mx-4 mb-2 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
+          <span className="text-lg">⏳</span>
+          <div className="flex-1">
+            <p className="text-[11px] font-bold text-amber-300/90 uppercase tracking-wider">
+              Rate Limit Reached — {rateLimitInfo.limit - rateLimitInfo.remaining}/{rateLimitInfo.limit} Requests Used
+            </p>
+            <p className="text-[10px] text-amber-200/50 mt-0.5">
+              {rateLimitInfo.resetTimeFormatted
+                ? `Your limit resets at ${rateLimitInfo.resetTimeFormatted}. Check back then.`
+                : 'Your limit will reset in about an hour.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Usage Counter (when not blocked but usage > 0) */}
+      {!isRateLimited && rateLimitInfo && rateLimitInfo.remaining < rateLimitInfo.limit && (
+        <div className="flex justify-center pb-1">
+          <span className="text-[8px] font-bold text-white/15 uppercase tracking-widest">
+            {rateLimitInfo.remaining}/{rateLimitInfo.limit} requests remaining
+          </span>
+        </div>
+      )}
+
       <div className="relative w-full">
         <InputBar
           onSubmit={onSubmit}
-          isLoading={isLoading}
+          isLoading={isLoading || isRateLimited}
           mentionCandidates={mentionCandidates}
           isGroup={isGroup}
           isPrism={isPrism}

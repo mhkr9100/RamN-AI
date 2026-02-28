@@ -17,7 +17,7 @@ export const STORES_ENUM = {
 type StoreName = typeof STORES_ENUM[keyof typeof STORES_ENUM];
 
 // ==========================================
-// Dexie Database Definition
+// Dexie Database Definition (Local Cache)
 // ==========================================
 class RamNDatabase extends Dexie {
     agents!: Table<any, string>;
@@ -58,13 +58,25 @@ const db = new RamNDatabase();
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 // ==========================================
-// DBService — Local-First Sync Engine
+// DBService — DynamoDB-First, IndexedDB Cache
 // ==========================================
 class DBService {
     private getTable(storeName: StoreName): Table<any, string> {
         return db[storeName as keyof RamNDatabase] as Table<any, string>;
     }
 
+    private getAuthHeaders(): Record<string, string> {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('auth_token');
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        return headers;
+    }
+
+    /**
+     * PUT — DynamoDB First, IndexedDB Cache
+     * 1. Write to DynamoDB immediately (if backend is available)
+     * 2. Cache locally in IndexedDB for offline/fast access
+     */
     async put(storeName: StoreName, value: any, explicitKey?: string) {
         try {
             const key = explicitKey || (value && value.id ? value.id : undefined);
@@ -74,69 +86,142 @@ class DBService {
                 ? { id: key, data: value }
                 : { ...value, id: key };
 
-            // 1. Instant local write
-            await this.getTable(storeName).put(item);
-
-            // 2. Async Cloud Sync (Fire and forget if BACKEND_URL exists)
+            // 1. DynamoDB FIRST (if backend exists and item has userId)
             if (BACKEND_URL && item.userId) {
-                fetch(`${BACKEND_URL}/api/db`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ store: storeName, item })
-                }).catch(e => console.error(`[AWS Sync Error] Failed to push to ${storeName}:`, e));
+                try {
+                    await fetch(`${BACKEND_URL}/api/db`, {
+                        method: 'POST',
+                        headers: this.getAuthHeaders(),
+                        body: JSON.stringify({ store: storeName, item })
+                    });
+                } catch (e) {
+                    console.error(`[DynamoDB Write Error] ${storeName}:`, e);
+                    // Continue to local cache even if cloud fails
+                }
             }
-        } catch (error) {
-            console.error(`IndexedDB Put Error [${storeName}]:`, error);
-        }
-    }
 
-    async get<T>(storeName: StoreName, key: string): Promise<T | null> {
-        try {
-            const item = await this.getTable(storeName).get(key);
-            if (!item) return null;
-            // If stored as { id, data }, return the data array
-            if (item.data && Array.isArray(item.data)) return item.data as T;
-            return item as T;
+            // 2. Cache locally
+            await this.getTable(storeName).put(item);
         } catch (error) {
-            console.error(`IndexedDB Get Error [${storeName}]:`, error);
-            return null;
-        }
-    }
-
-    async getAll<T>(storeName: StoreName): Promise<T[]> {
-        try {
-            const items = await this.getTable(storeName).toArray();
-            return items as T[];
-        } catch (error) {
-            console.error(`IndexedDB GetAll Error [${storeName}]:`, error);
-            return [];
-        }
-    }
-
-    async delete(storeName: StoreName, key: string, userId?: string) {
-        try {
-            // 1. Instant local delete
-            await this.getTable(storeName).delete(key);
-
-            // 2. Async Cloud Sync
-            if (BACKEND_URL && userId) {
-                fetch(`${BACKEND_URL}/api/db?store=${storeName}&id=${key}&userId=${userId}`, {
-                    method: 'DELETE'
-                }).catch(e => console.error(`[AWS Sync Error] Failed to delete from ${storeName}:`, e));
-            }
-        } catch (error) {
-            console.error(`IndexedDB Delete Error [${storeName}]:`, error);
+            console.error(`DB Put Error [${storeName}]:`, error);
         }
     }
 
     /**
-     * Pulls the entire state for a specific store and user from AWS and populates local IndexedDB
+     * GET — DynamoDB First, IndexedDB Fallback
+     * 1. Try DynamoDB if backend is available
+     * 2. Fallback to local IndexedDB cache
+     */
+    async get<T>(storeName: StoreName, key: string, userId?: string): Promise<T | null> {
+        try {
+            // Try DynamoDB first
+            if (BACKEND_URL && userId) {
+                try {
+                    const res = await fetch(
+                        `${BACKEND_URL}/api/db?store=${storeName}&id=${key}&userId=${userId}`,
+                        { headers: this.getAuthHeaders() }
+                    );
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.item) {
+                            // Cache locally for future fast access
+                            await this.getTable(storeName).put(
+                                Array.isArray(data.item) ? { id: key, data: data.item } : { ...data.item, id: key }
+                            );
+                            if (data.item.data && Array.isArray(data.item.data)) return data.item.data as T;
+                            return data.item as T;
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`[DynamoDB Read Fallback] ${storeName}:`, e);
+                    // Fall through to local
+                }
+            }
+
+            // Fallback: local IndexedDB
+            const item = await this.getTable(storeName).get(key);
+            if (!item) return null;
+            if (item.data && Array.isArray(item.data)) return item.data as T;
+            return item as T;
+        } catch (error) {
+            console.error(`DB Get Error [${storeName}]:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * GET ALL — DynamoDB First, IndexedDB Fallback
+     */
+    async getAll<T>(storeName: StoreName, userId?: string): Promise<T[]> {
+        try {
+            // Try DynamoDB first
+            if (BACKEND_URL && userId) {
+                try {
+                    const res = await fetch(
+                        `${BACKEND_URL}/api/db?store=${storeName}&userId=${userId}`,
+                        { headers: this.getAuthHeaders() }
+                    );
+                    if (res.ok) {
+                        const data = await res.json();
+                        const items = data.items || [];
+                        if (items.length > 0) {
+                            // Refresh local cache
+                            await this.getTable(storeName).clear();
+                            await this.getTable(storeName).bulkPut(items.map((i: any) => ({ ...i, id: i.id || i.originalId })));
+                        }
+                        return items as T[];
+                    }
+                } catch (e) {
+                    console.warn(`[DynamoDB GetAll Fallback] ${storeName}:`, e);
+                    // Fall through to local
+                }
+            }
+
+            // Fallback: local IndexedDB
+            const items = await this.getTable(storeName).toArray();
+            return items as T[];
+        } catch (error) {
+            console.error(`DB GetAll Error [${storeName}]:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * DELETE — DynamoDB First, then IndexedDB
+     */
+    async delete(storeName: StoreName, key: string, userId?: string) {
+        try {
+            // 1. DynamoDB first
+            if (BACKEND_URL && userId) {
+                try {
+                    await fetch(
+                        `${BACKEND_URL}/api/db?store=${storeName}&id=${key}&userId=${userId}`,
+                        { method: 'DELETE', headers: this.getAuthHeaders() }
+                    );
+                } catch (e) {
+                    console.error(`[DynamoDB Delete Error] ${storeName}:`, e);
+                }
+            }
+
+            // 2. Local cache
+            await this.getTable(storeName).delete(key);
+        } catch (error) {
+            console.error(`DB Delete Error [${storeName}]:`, error);
+        }
+    }
+
+    /**
+     * Pull from cloud — Sync DynamoDB → IndexedDB
+     * Called on login to hydrate local cache
      */
     async pullFromCloud<T>(storeName: StoreName, userId: string): Promise<T[]> {
         if (!BACKEND_URL) return this.getAll<T>(storeName);
 
         try {
-            const res = await fetch(`${BACKEND_URL}/api/db?store=${storeName}&userId=${userId}`);
+            const res = await fetch(
+                `${BACKEND_URL}/api/db?store=${storeName}&userId=${userId}`,
+                { headers: this.getAuthHeaders() }
+            );
             if (!res.ok) throw new Error(`Cloud fetch failed: ${res.status}`);
 
             const data = await res.json();
@@ -149,8 +234,7 @@ class DBService {
             }
             return items as T[];
         } catch (error) {
-            console.error(`[AWS Sync Error] Failed to pull ${storeName} from cloud:`, error);
-            // Fallback to local on failure
+            console.error(`[Cloud Sync Error] Failed to pull ${storeName}:`, error);
             return this.getAll<T>(storeName);
         }
     }

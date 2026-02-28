@@ -9,10 +9,13 @@ export interface UserSession {
 export const authService = {
     async register(email: string, password: string, name: string): Promise<UserSession> {
         if (!BACKEND_URL) {
-            // Mock Fallback
+            // Dev-only fallback (no backend deployed yet)
             const id = `user-${Date.now()}`;
-            const user = { email, password, name, id };
             const stored = JSON.parse(localStorage.getItem('mock_registry') || '[]');
+            const exists = stored.find((u: any) => u.email === email);
+            if (exists) throw new Error('User already exists');
+
+            const user = { email, password, name, id };
             stored.push(user);
             localStorage.setItem('mock_registry', JSON.stringify(stored));
 
@@ -42,18 +45,18 @@ export const authService = {
 
     async login(email: string, password?: string): Promise<UserSession> {
         if (!BACKEND_URL) {
-            // Mock Fallback with basic security check
+            // Dev-only fallback — strict password check
             const storedUsers = JSON.parse(localStorage.getItem('mock_registry') || '[]');
             const user = storedUsers.find((u: any) => u.email === email && u.password === password);
 
-            if (!user && password !== 'admin') { // Allow 'admin' as universal fallback for dev
+            if (!user) {
                 throw new Error('Invalid email or password');
             }
 
             const session: UserSession = {
                 email,
-                id: user?.id || `user-${email}`,
-                name: user?.name || email.split('@')[0]
+                id: user.id,
+                name: user.name || email.split('@')[0]
             };
             localStorage.setItem('currentUser', JSON.stringify(session));
             localStorage.setItem('auth_token', `mock-jwt-${session.id}`);

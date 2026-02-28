@@ -3,6 +3,7 @@ import { Agent, Team, Message, UserProfile, MessageContent, Task, ToolCall, Glob
 import { AGENTS } from '../constants';
 import { generateSingleAgentResponse, generatePrismResponse } from '../services/aiService';
 import { dbService, STORES_ENUM } from '../services/db';
+import { canMakeRequest, recordRequest, getUsageInfo, formatResetTime } from '../services/rateLimiter';
 
 // Composed Hooks
 import { useAuth } from './useAuth';
@@ -15,6 +16,14 @@ export interface TypingState {
     tasks: Task[];
     weight?: number;
     mode?: 'CHAT' | 'SOLUTION' | 'TASK' | 'VOID';
+}
+
+export interface RateLimitInfo {
+    blocked: boolean;
+    remaining: number;
+    limit: number;
+    resetTime: Date | null;
+    resetTimeFormatted: string | null;
 }
 
 export const useScatter = () => {
@@ -35,6 +44,29 @@ export const useScatter = () => {
         loadSessions, addMessage, clearChat, loadChatHistory,
         startNewSession, resumeSession, getSessionsForEntity
     } = useChatSessions(currentUser);
+
+    // === Rate Limit State ===
+    const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo>({
+        blocked: false, remaining: 10, limit: 10, resetTime: null, resetTimeFormatted: null
+    });
+
+    // Refresh rate limit info periodically
+    useEffect(() => {
+        if (!currentUser) return;
+        const refreshRate = () => {
+            const usage = getUsageInfo(currentUser.id);
+            setRateLimitInfo({
+                blocked: usage.remaining <= 0,
+                remaining: usage.remaining,
+                limit: usage.limit,
+                resetTime: usage.resetTime,
+                resetTimeFormatted: usage.resetTime ? formatResetTime(usage.resetTime) : null
+            });
+        };
+        refreshRate();
+        const interval = setInterval(refreshRate, 10_000); // refresh every 10s
+        return () => clearInterval(interval);
+    }, [currentUser]);
 
     // === Load Data on Auth ===
     useEffect(() => {
@@ -106,6 +138,42 @@ export const useScatter = () => {
     const handleSendMessage = useCallback(async (text: string, responseSteps: number = 1, file?: { data: string, mimeType: string }, searchEnabled?: boolean, createEnabled?: boolean) => {
         const chatId = activeChatId;
         if (!currentUser) return;
+
+        // ── STRICT RATE LIMIT CHECK ──
+        const rateCheck = canMakeRequest(currentUser.id);
+        if (!rateCheck.allowed) {
+            const usage = getUsageInfo(currentUser.id);
+            setRateLimitInfo({
+                blocked: true,
+                remaining: 0,
+                limit: usage.limit,
+                resetTime: usage.resetTime,
+                resetTimeFormatted: usage.resetTime ? formatResetTime(usage.resetTime) : null
+            });
+            // Show rate limit as a system message
+            addMessage(chatId, {
+                id: `ratelimit-${Date.now()}`,
+                agent: AGENTS.PRISM,
+                content: {
+                    type: 'text',
+                    text: `⏳ **Rate Limit Reached.** You've used all 10 requests this hour. Your limit resets at **${usage.resetTime ? formatResetTime(usage.resetTime) : 'soon'}**. Please check back then.`
+                },
+                type: 'agent'
+            });
+            return; // BLOCK — do not send
+        }
+
+        // Record this request
+        recordRequest(currentUser.id);
+        const updatedUsage = getUsageInfo(currentUser.id);
+        setRateLimitInfo({
+            blocked: updatedUsage.remaining <= 0,
+            remaining: updatedUsage.remaining,
+            limit: updatedUsage.limit,
+            resetTime: updatedUsage.resetTime,
+            resetTimeFormatted: updatedUsage.resetTime ? formatResetTime(updatedUsage.resetTime) : null
+        });
+        // ── END RATE LIMIT ──
 
         const newMessage: Message = {
             id: Date.now().toString(),
@@ -186,6 +254,7 @@ export const useScatter = () => {
         processSilentDirective, injectOutputToChat,
         clearChat, loadChatHistory, recruitAgent, deleteAgent, deleteTeam,
         createTeam: (data: any) => createTeam(data, setActiveChatId),
+        rateLimitInfo,
         // Session Management
         chatSessions, activeSessionId, startNewSession, resumeSession, getSessionsForEntity
     };

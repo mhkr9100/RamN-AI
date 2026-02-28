@@ -22,6 +22,7 @@ const App: React.FC = () => {
     currentUser, isInitializing, login, logout, userProfile, setUserProfile, agents, setAgents, teams, setTeams,
     activeChatId, setActiveChatId, chatHistory, setChatHistory, isProcessing, typingAgent, typingAgents, prismStatus, orchestrationWeights, agentModes,
     handleSendMessage, handleExecuteCommand, handleExpandMessage, injectOutputToChat, clearChat, loadChatHistory, recruitAgent, createTeam, deleteAgent, deleteTeam, processSilentDirective,
+    rateLimitInfo,
     chatSessions, activeSessionId, startNewSession, resumeSession, getSessionsForEntity
   } = useScatter();
 
@@ -146,6 +147,7 @@ const App: React.FC = () => {
                   activeChatId={activeChatId}
                   activeAgent={activeAgent}
                   activeTeam={activeTeam}
+                  rateLimitInfo={rateLimitInfo}
                   sessions={getSessionsForEntity(activeChatId)}
                   activeSessionId={activeSessionId || ''}
                   onResumeSession={(sessionId) => { const s = chatSessions.find(x => x.id === sessionId); if (s) resumeSession(s); }}
