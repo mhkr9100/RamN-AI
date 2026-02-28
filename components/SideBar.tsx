@@ -7,6 +7,7 @@ import { ChatIcon } from './icons/ChatIcon';
 import { Agent, Team, UserProfile } from '../types';
 import { EllipsisVerticalIcon } from './icons/EllipsisVerticalIcon';
 import { BetaLockedWrapper } from './BetaLockedWrapper';
+import { ConfirmationModal } from './ConfirmationModal';
 import { authService } from '../services/auth';
 
 interface SideBarProps {
@@ -56,6 +57,7 @@ const ChatListItem: React.FC<{
         <div className="relative" ref={menuRef}>
           <button
             onClick={(e) => { e.stopPropagation(); setIsMenuOpen(!isMenuOpen); }}
+            aria-label="Chat options"
             className={`p-1 rounded-md transition-opacity duration-200 ${isMenuOpen ? 'opacity-100 bg-black/10' : 'opacity-0 group-hover:opacity-100'}`}
           >
             <EllipsisVerticalIcon />
@@ -82,6 +84,8 @@ export function SideBar({
   const [isRailCollapsed, setIsRailCollapsed] = useState(false);
   const [isChatSubSidebarCollapsed, setIsChatSubSidebarCollapsed] = useState(false);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('connected');
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string, name: string, type: 'agent' | 'team' } | null>(null);
 
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -118,11 +122,21 @@ export function SideBar({
     setIsChatSubSidebarCollapsed(!isChatSubSidebarCollapsed);
   };
 
+  const confirmDelete = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'agent' && onDeleteAgent) {
+      onDeleteAgent(deleteTarget.id);
+    } else if (deleteTarget.type === 'team') {
+      onDeleteTeam(deleteTarget.id);
+    }
+    setDeleteTarget(null);
+  };
+
   return (
     <div className="flex h-full z-30 transition-all duration-300 relative">
       {/* Navigation Rail */}
       <div className={`${isRailCollapsed ? 'w-14' : 'w-20'} bg-[#1A1A1A] border-r border-white/5 flex flex-col items-center py-6 space-y-8 flex-shrink-0 transition-all duration-300`}>
-        <button onClick={() => onViewChange('home')} title="Home" className="p-2 text-white/40 hover:text-white transition-all transform hover:scale-110 flex flex-col items-center gap-2">
+        <button onClick={() => onViewChange('home')} title="Home" aria-label="Home" className="p-2 text-white/40 hover:text-white transition-all transform hover:scale-110 flex flex-col items-center gap-2">
           <div className="relative">
             <RamanIcon size={32} />
             <span className="absolute -top-1 -right-3 text-[5px] font-black uppercase tracking-widest text-slate-500 border border-slate-600 rounded px-1 backdrop-blur-md">Beta</span>
@@ -135,6 +149,7 @@ export function SideBar({
             onClick={() => onViewChange('prism')}
             className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all ${activeView === 'prism' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
             title="Prism"
+            aria-label="Prism"
           >
             <PrismIcon size={22} />
             {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Prism</span>}
@@ -144,6 +159,7 @@ export function SideBar({
             onClick={() => onViewChange('spectrum')}
             className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all ${activeView === 'spectrum' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
             title="Spectrum"
+            aria-label="Spectrum"
           >
             <SpectrumIcon size={22} />
             {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1 text-center">Spectrum</span>}
@@ -154,6 +170,7 @@ export function SideBar({
               onClick={() => onViewChange('chats')}
               className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all ${activeView === 'chats' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
               title="Chats"
+              aria-label="Chats"
             >
               <ChatIcon />
               {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Chats</span>}
@@ -162,6 +179,7 @@ export function SideBar({
             {/* Toggle button circling around the chat icon area */}
             <button
               onClick={toggleSubSidebar}
+              aria-label={isChatSubSidebarCollapsed ? "Expand chat sidebar" : "Collapse chat sidebar"}
               className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-white/40 hover:text-white transition-all z-50 ${activeView === 'chats' ? 'opacity-100 scale-100' : 'opacity-0 scale-50 pointer-events-none'}`}
             >
               <svg
@@ -182,6 +200,7 @@ export function SideBar({
             onClick={() => onViewChange('usermap')}
             className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all ${activeView === 'usermap' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
             title="UserMap"
+            aria-label="UserMap"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-[22px] h-[22px]"><path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" /></svg>
             {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Map</span>}
@@ -189,6 +208,7 @@ export function SideBar({
 
           <button
             onClick={onOpenProfile}
+            aria-label="Open profile"
             className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden hover:border-white transition-all mt-2"
           >
             {userProfile.avatar ? <img src={userProfile.avatar} alt="Profile" className="w-full h-full object-cover" /> : <span className="text-[8px] font-bold">👤</span>}
@@ -216,7 +236,15 @@ export function SideBar({
                 <h3 className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em] mb-3 px-2">Agents</h3>
                 <div className="space-y-0.5">
                   {agents.filter(a => a.id !== 'prism-core').map(agent => (
-                    <ChatListItem key={agent.id} id={agent.id} name={agent.name} isSystem={agent.isSystem} isActive={activeChatId === agent.id} onClick={onSelectChat} onDelete={onDeleteAgent} />
+                    <ChatListItem
+                      key={agent.id}
+                      id={agent.id}
+                      name={agent.name}
+                      isSystem={agent.isSystem}
+                      isActive={activeChatId === agent.id}
+                      onClick={onSelectChat}
+                      onDelete={() => setDeleteTarget({ id: agent.id, name: agent.name, type: 'agent' })}
+                    />
                   ))}
                 </div>
               </div>
@@ -227,7 +255,15 @@ export function SideBar({
                 <h3 className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em] mb-3 px-2">Teams</h3>
                 <div className="space-y-0.5">
                   {teams.map(team => (
-                    <ChatListItem key={team.id} id={team.id} name={team.name} isSystem={team.isSystem} isActive={activeChatId === team.id} onClick={onSelectChat} onDelete={onDeleteTeam} />
+                    <ChatListItem
+                      key={team.id}
+                      id={team.id}
+                      name={team.name}
+                      isSystem={team.isSystem}
+                      isActive={activeChatId === team.id}
+                      onClick={onSelectChat}
+                      onDelete={() => setDeleteTarget({ id: team.id, name: team.name, type: 'team' })}
+                    />
                   ))}
                 </div>
               </div>
@@ -248,6 +284,7 @@ export function SideBar({
               <h2 className="text-xl font-display font-extrabold text-white tracking-tight">Got Feedback?</h2>
               <button
                 onClick={() => !isSubmittingFeedback && setIsFeedbackModalOpen(false)}
+                aria-label="Close feedback modal"
                 className="p-2 text-white/40 hover:text-white transition-colors rounded-full hover:bg-white/5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -281,6 +318,13 @@ export function SideBar({
           </div>
         </div>
       )}
+      <ConfirmationModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title={`Delete ${deleteTarget?.type === 'agent' ? 'Agent' : 'Team'}`}
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
+      />
     </div>
   );
 }
