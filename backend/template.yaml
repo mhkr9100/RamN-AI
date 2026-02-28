@@ -142,6 +142,32 @@ Resources:
             Path: /api/db
             Method: DELETE
 
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/auth.handler
+      CodeUri: .
+      Timeout: 30
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RamNTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref RamNTable
+      Events:
+        RegisterApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RamnApi
+            Path: /api/auth/register
+            Method: POST
+        LoginApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RamnApi
+            Path: /api/auth/login
+            Method: POST
+
   MemoryFunction:
     Type: AWS::Serverless::Function
     Properties:

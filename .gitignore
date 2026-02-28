@@ -22,7 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.npm_cache/\n.DS_Store
+.npm_cache/
 .DS_Store
 
 # Endpoints Config
@@ -30,3 +30,5 @@ dist-ssr
 .env.*
 !.env.example
 .npm_cache/
+.aws-sam/
+backend/.aws-sam/
