@@ -134,8 +134,11 @@ export async function hybridGenerateContent(
 
             if (!response.ok) {
                 const errText = await response.text();
+                console.warn('[RamN] Google API Error:', response.status, errText.substring(0, 200));
                 if (errText.includes('API_KEY_INVALID')) throw new Error('[RamN] Platform API key is invalid. Contact support.');
-                if (errText.includes('RESOURCE_EXHAUSTED')) throw new Error('Platform rate limit reached. Please try again in a moment.');
+                if (errText.includes('RESOURCE_EXHAUSTED')) {
+                    throw new Error('RESOURCE_EXHAUSTED: Google API rate limit hit. Retrying...');
+                }
                 throw new Error(`Google API error: ${response.statusText}`);
             }
 
@@ -149,8 +152,14 @@ export async function hybridGenerateContent(
         } catch (error: any) {
             lastError = error;
             if (error.message.includes("RESOURCE_EXHAUSTED") && i < maxRetries - 1) {
-                await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+                const delayMs = (i + 1) * 3000; // 3s, 6s, 9s backoff
+                console.warn(`[RamN] Rate limited by Google API. Retry ${i + 1}/${maxRetries - 1} in ${delayMs / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
                 continue;
+            }
+            // If all retries exhausted, show a user-friendly message
+            if (error.message.includes("RESOURCE_EXHAUSTED")) {
+                throw new Error('⏳ Google API is temporarily busy. Please wait 30 seconds and try again.');
             }
             throw error;
         }
