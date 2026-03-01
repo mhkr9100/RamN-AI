@@ -56,34 +56,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   return (
     <div className="flex flex-col h-full w-full relative">
-      <ScatterBottleVisual
-        isRolling={isDispatching}
-        activeAgents={mentionCandidates}
-        selectedIds={activatedIds}
-        weights={orchestrationWeights}
-        agentModes={agentModes}
-      />
+      {/* HEADER: Moved session controls and + button here */}
+      <div className="h-16 flex items-center justify-between px-6 border-b border-white/5 bg-[#1A1A1A]/80 backdrop-blur-xl z-30 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-sm">
+            {isPrism ? '💎' : (activeAgent?.icon || (activeTeam ? '👥' : '🤖'))}
+          </div>
+          <div className="flex flex-col">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">
+              {isPrism ? 'Prism Core' : activeAgent?.name || activeTeam?.name || 'Active Session'}
+            </h2>
+            <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest mt-0.5">
+              {isPrism ? 'Meta Agent' : activeAgent?.role || 'Squad'}
+            </span>
+          </div>
+        </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col relative">
-        <ChatInterface
-          messages={messages}
-          isLoading={isLoading}
-          typingAgent={typingAgent}
-          typingAgents={typingAgents}
-          onAddEmployee={onAddAgent}
-          /* Fix: Renamed onCreateTeam to onCreateGroup to match ChatInterfaceProps */
-          onCreateGroup={onCreateTeam}
-          onConfigureNewAgent={onConfigureNewAgent}
-          onDeployCustomGroup={onDeployCustomTeam}
-          onExecuteCommand={onExecuteCommand}
-          onExpandMessage={onExpandMessage}
-          isPrism={isPrism}
-        />
-      </div>
-
-      {/* Session Controls — above InputBar */}
-      {(sessions.length > 1 || onStartNewSession) && (
-        <div className="flex items-center justify-center gap-2 px-4 py-2 border-t border-white/5">
+        <div className="flex items-center gap-3">
           {sessions.length > 1 && onResumeSession && (
             <select
               value={activeSessionId}
@@ -92,22 +81,48 @@ export const ChatView: React.FC<ChatViewProps> = ({
             >
               {sessions.map((s, i) => (
                 <option key={s.id} value={s.id} className="bg-[#1A1A1A] text-white">
-                  {s.title === 'New Chat' ? `Session ${sessions.length - i}` : s.title} — {new Date(s.updatedAt).toLocaleDateString()}
+                  {s.title === 'New Chat' ? `Session ${sessions.length - i}` : s.title}
                 </option>
               ))}
             </select>
           )}
+
+          {/* Chat Interval (+) Button moved to top */}
           {onStartNewSession && (
             <button
               onClick={onStartNewSession}
-              title="New session"
-              className="p-1.5 rounded-lg border border-white/10 text-white/20 hover:text-white/60 hover:border-white/20 hover:bg-white/5 transition-all"
+              title="Chat Interval / New Session"
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-white/10 text-white/40 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
             </button>
           )}
+
+          {/* Info Button beside + button */}
+          <button
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-white/10 text-white/20 hover:text-white transition-all cursor-help"
+            title="Agent Intelligence Details"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+          </button>
         </div>
-      )}
+      </div>
+
+      <div className="flex-1 overflow-hidden flex flex-col relative bg-[#1A1A1A]">
+        <ChatInterface
+          messages={messages}
+          isLoading={isLoading}
+          typingAgent={typingAgent}
+          typingAgents={typingAgents}
+          onAddEmployee={onAddAgent}
+          onCreateGroup={onCreateTeam}
+          onConfigureNewAgent={onConfigureNewAgent}
+          onDeployCustomGroup={onDeployCustomTeam}
+          onExecuteCommand={onExecuteCommand}
+          onExpandMessage={onExpandMessage}
+          isPrism={isPrism}
+        />
+      </div>
 
       {/* Rate Limit Banner */}
       {isRateLimited && rateLimitInfo && (
@@ -126,11 +141,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      {/* Usage Counter (when not blocked but usage > 0) */}
+      {/* Usage Counter */}
       {!isRateLimited && rateLimitInfo && rateLimitInfo.remaining < rateLimitInfo.limit && (
         <div className="flex justify-center pb-1">
-          <span className="text-[8px] font-bold text-white/15 uppercase tracking-widest">
-            {rateLimitInfo.remaining}/{rateLimitInfo.limit} requests remaining
+          <span className="text-[8px] font-bold text-white/10 uppercase tracking-widest">
+            {rateLimitInfo.remaining}/{rateLimitInfo.limit} tokens remaining
           </span>
         </div>
       )}
