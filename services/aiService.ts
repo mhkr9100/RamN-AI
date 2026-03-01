@@ -97,7 +97,10 @@ export async function hybridGenerateContent(
 
             // ========== GEMINI (Platform Managed) ==========
             const { apiKey } = getPlatformConfig();
-            if (!apiKey) throw new Error('[RamN] Platform Gemini key not configured. Contact support.');
+            if (!apiKey) {
+                console.error('[RamN] VITE_GEMINI_API_KEY is missing. Check .env file and Amplify Environment Variables.');
+                throw new Error('[RamN] Platform Gemini key not configured. Ensure VITE_GEMINI_API_KEY is set in your environment.');
+            }
 
             // Context Caching: if cachedContent ID is passed, use it to skip re-sending large context
             const cachedContentId: string | undefined = params.cachedContentId;
