@@ -1,6 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 import * as crypto from 'crypto';
 
 const client = new DynamoDBClient({});
@@ -52,6 +52,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
                 return await handleRegister(event);
             } else if (path.endsWith('/login')) {
                 return await handleLogin(event);
+            }
+        } else if (event.httpMethod === 'DELETE') {
+            if (path.endsWith('/delete')) {
+                return await handleDeleteAccount(event);
             }
         }
 
@@ -156,4 +160,22 @@ async function handleLogin(event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         user: { id: userProfile.id, email: userProfile.email, name: userProfile.name },
         token: `ramn-jwt-${token}` // Mock JWT for now
     });
+}
+async function handleDeleteAccount(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+    const body = JSON.parse(event.body || '{}');
+    const email = (body.email || '').toLowerCase().trim();
+
+    if (!email) {
+        return apiError(400, 'Missing email');
+    }
+
+    const pk = `USER#${email}`;
+    const sk = `PROFILE`;
+
+    await docClient.send(new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: pk, SK: sk }
+    }));
+
+    return apiSuccess({ success: true, message: 'Account deleted' });
 }

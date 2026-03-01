@@ -11,7 +11,9 @@ const PRISM_INTRO = `Prism is Active. I am your Meta Agent and Workspace Archite
 - **Create Agents**: Fabricate specialized units for dedicated tasks.
 - **Chat Interval**: Pace the interaction for multi-step reasoning.
 
-How can I help you build your workspace today? Tell me about a project, a workflow, or a specific problem you're looking to solve.`;
+How can I help you build your workspace today? Tell me about a project, a workflow, or a specific problem you're looking to solve.
+
+Let's start with "create an agent....!"`;
 
 const getAgentIntro = (name: string, role: string) => `**${name}** is Online. I am a specialized unit assigned the role of **${role}**. How can I assist you in my area of expertise today? Use the input bar below to send instructions.`;
 

@@ -92,6 +92,23 @@ export const authService = {
         localStorage.removeItem('auth_token');
     },
 
+    async deleteAccount(emailRaw: string) {
+        const email = emailRaw.toLowerCase().trim();
+        if (BACKEND_URL) {
+            const res = await fetch(`${BACKEND_URL}/api/auth/delete`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            if (!res.ok) throw new Error('Failed to delete account from cloud');
+        } else {
+            const stored = JSON.parse(localStorage.getItem('mock_registry') || '[]');
+            const filtered = stored.filter((u: any) => u.email !== email);
+            localStorage.setItem('mock_registry', JSON.stringify(filtered));
+        }
+        await this.logout();
+    },
+
     async getCurrentUser() {
         try {
             const data = localStorage.getItem('currentUser');

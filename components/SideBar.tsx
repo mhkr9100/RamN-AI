@@ -4,7 +4,7 @@ import { RamanIcon } from './icons/RamanIcon';
 import { PrismIcon } from './icons/PrismIcon';
 import { SpectrumIcon } from './icons/SpectrumIcon';
 import { ChatIcon } from './icons/ChatIcon';
-import { BrainIcon } from './icons/BrainIcon';
+import { UserMapIcon } from './icons/UserMapIcon';
 import { Agent, Team, UserProfile } from '../types';
 import { EllipsisVerticalIcon } from './icons/EllipsisVerticalIcon';
 import { BetaLockedWrapper } from './BetaLockedWrapper';
@@ -180,12 +180,20 @@ export function SideBar({
         <div className="flex flex-col items-center space-y-4 pb-4">
 
           <button
+            onClick={() => setIsFeedbackModalOpen(true)}
+            className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center hover:border-white/20 transition-all group"
+            title="Feedback"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-white/40 group-hover:text-amber-400 group-hover:scale-110 transition-all"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785 0.5 0 00.337.839 7.737 7.737 0 004.388-1.723c.071-.051.147-.094.225-.135A6.07 6.07 0 0112 20.25z" /></svg>
+          </button>
+
+          <button
             onClick={() => onViewChange('usermap')}
             className={`flex flex-col items-center gap-1 group p-2 rounded-xl transition-all ${activeView === 'usermap' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
-            title="Context Brain"
+            title="Context UserMap"
           >
-            <BrainIcon size={22} />
-            {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">Brain</span>}
+            <UserMapIcon size={22} />
+            {!isRailCollapsed && <span className="text-[8px] font-bold uppercase tracking-widest mt-1">UserMap</span>}
           </button>
 
           <button
