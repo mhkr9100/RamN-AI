@@ -5,8 +5,9 @@ import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-d
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.TABLE_NAME || 'RamN-Entities';
+const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || 'ramn-ai';
+const GCP_LOCATION = process.env.GCP_LOCATION || 'us-central1';
 
-// Standard CORS headers
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Requested-With',
@@ -14,19 +15,54 @@ const corsHeaders = {
 };
 
 function apiError(statusCode: number, message: string): APIGatewayProxyResult {
-    return {
-        statusCode,
-        headers: corsHeaders,
-        body: JSON.stringify({ error: message }),
-    };
+    return { statusCode, headers: corsHeaders, body: JSON.stringify({ error: message }) };
 }
 
 function apiSuccess(data: any): APIGatewayProxyResult {
-    return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify(data),
-    };
+    return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(data) };
+}
+
+/**
+ * Generate text embedding using Vertex AI textembedding-gecko
+ * Uses the REST API directly (no SDK dependency needed)
+ */
+async function getEmbedding(text: string): Promise<number[]> {
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+
+    // Use Gemini's embedding endpoint (simpler than Vertex for Beta)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: 'models/text-embedding-004',
+            content: { parts: [{ text }] }
+        })
+    });
+
+    if (!response.ok) {
+        const err = await response.text();
+        console.error('[Embedding Error]', err);
+        throw new Error(`Embedding API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.embedding?.values || [];
+}
+
+/**
+ * Cosine similarity between two vectors
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length || a.length === 0) return 0;
+    let dot = 0, normA = 0, normB = 0;
+    for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+        normA += a[i] * a[i];
+        normB += b[i] * b[i];
+    }
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -34,202 +70,134 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
         return { statusCode: 200, headers: corsHeaders, body: '' };
     }
 
-    if (event.httpMethod !== 'POST') {
-        return apiError(405, 'Method Not Allowed');
-    }
-
     try {
-        const path = event.path;
+        const reqContext = event.requestContext as any;
+        const path = reqContext?.http?.path || event.path;
 
-        if (path === '/api/memory/add') {
-            return await handleAddMemory(event);
-        } else if (path === '/api/memory/search') {
-            return await handleSearchMemory(event);
-        } else {
-            return apiError(404, 'Endpoint Not Found');
+        if (event.httpMethod === 'POST') {
+            if (path.endsWith('/add')) return await handleAdd(event);
+            if (path.endsWith('/search')) return await handleSearch(event);
         }
+
+        return apiError(404, 'Not Found');
     } catch (error: any) {
-        console.error('Memory API Error:', error);
+        console.error('Memory Error:', error);
         return apiError(500, error.message || 'Internal Server Error');
     }
 };
 
-function extractUserIdFromToken(event: APIGatewayProxyEvent): string | null {
-    const authHeader = event.headers['Authorization'] || event.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
-    const token = authHeader.replace('Bearer ', '');
-    // In our beta, the mock JWT encodes the ID directly
-    if (token.startsWith('ramn-mock-jwt-')) {
-        return token.replace('ramn-mock-jwt-', '');
-    }
-    return null;
-}
-
-/**
- * Perform Cosine Similarity between vector A and vector B
- */
-function cosineSimilarity(A: number[], B: number[]): number {
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-    for (let i = 0; i < A.length; i++) {
-        dotProduct += A[i] * B[i];
-        normA += A[i] * A[i];
-        normB += B[i] * B[i];
-    }
-    if (normA === 0 || normB === 0) return 0;
-    return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-}
-
-/**
- * Fetch embedding from Gemini using the provided API Key with Exponential Backoff
- */
-async function fetchGeminiEmbedding(text: string, apiKey: string, retries = 3): Promise<number[]> {
-    const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`;
-
-    let lastError;
-    for (let i = 0; i < retries; i++) {
-        try {
-            const res = await fetch(targetUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: 'models/text-embedding-004',
-                    content: { parts: [{ text }] }
-                })
-            });
-
-            if (!res.ok) {
-                const err = await res.text();
-                // If Rate Limited or Server Error, retry
-                if (res.status === 429 || res.status >= 500) {
-                    lastError = new Error(`Embedding generation retryable error: ${res.status} ${err}`);
-                    console.warn(`[MemoryAPI] Embedding fetch failed (attempt ${i + 1}/${retries}). Backing off...`);
-                    await new Promise(r => setTimeout(r, Math.random() * 1000 + Math.pow(2, i) * 1000));
-                    continue;
-                }
-                throw new Error(`Embedding generation fatal error: ${res.status} ${err}`);
-            }
-
-            const data: any = await res.json();
-            return data.embedding?.values || [];
-        } catch (error) {
-            lastError = error;
-        }
-    }
-    throw lastError;
-}
-
 /**
  * POST /api/memory/add
- * Expects: { userId, agentId (optional), content, apiKey }
+ * { userId, content, agentId?, category? }
+ * Embeds the content using Vertex AI and stores with embedding in DynamoDB
  */
-async function handleAddMemory(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-    const { userId, agentId, content, apiKey } = JSON.parse(event.body || '{}');
+async function handleAdd(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+    const body = JSON.parse(event.body || '{}');
+    const { userId, content, agentId, category } = body;
 
-    if (!userId || !content || !apiKey) {
-        return apiError(400, 'Missing userId, content, or apiKey');
+    if (!userId || !content) {
+        return apiError(400, 'Missing userId or content');
     }
 
-    const authenticatedId = extractUserIdFromToken(event);
-    if (!authenticatedId || authenticatedId !== userId) {
-        console.warn(`[Security] Unauthorized memory add attempt for user ${userId}`);
-        return apiError(403, 'Forbidden: Invalid or missing authorization token for this user');
+    // Generate embedding
+    let embedding: number[] = [];
+    try {
+        embedding = await getEmbedding(content);
+    } catch (e: any) {
+        console.error('[Embedding failed, storing without]', e.message);
     }
 
-    // 1. Generate text embedding
-    const embedding = await fetchGeminiEmbedding(content, apiKey);
-    if (!embedding.length) {
-        return apiError(500, 'Failed to generate embedding');
-    }
-
-    // 2. Store in DynamoDB (PK: USER#userId, SK: MEMORY#<timestamp_rand>)
+    const memoryId = `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const pk = `USER#${userId}`;
-    const id = `mem-${Date.now()}-${Math.random().toString(36).substr(2, 8)}`;
-    const sk = `MEMORY#${id}`;
+    const sk = `memories#${memoryId}`;
 
-    const memoryItem = {
-        id,
-        userId,
-        agentId: agentId || null,
-        content,
-        embedding, // Store vector directly in DynamoDB array format
-        createdAt: new Date().toISOString()
-    };
-
-    const params = {
+    await docClient.send(new PutCommand({
         TableName: TABLE_NAME,
         Item: {
             PK: pk,
             SK: sk,
-            data: memoryItem
+            storeName: 'memories',
+            originalId: memoryId,
+            data: {
+                id: memoryId,
+                userId,
+                agentId: agentId || null,
+                content,
+                category: category || 'general',
+                embedding,
+                createdAt: new Date().toISOString()
+            },
+            updatedAt: new Date().toISOString()
         }
-    };
+    }));
 
-    await docClient.send(new PutCommand(params));
-    return apiSuccess({ success: true, memory: memoryItem });
+    return apiSuccess({ success: true, memoryId, hasEmbedding: embedding.length > 0 });
 }
 
 /**
  * POST /api/memory/search
- * Expects: { userId, agentId (optional), query, limit (default=5), apiKey }
+ * { userId, query, limit? }
+ * Embeds the query, fetches all user memories, does cosine similarity, returns top K
  */
-async function handleSearchMemory(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
-    const { userId, agentId, query, limit = 5, apiKey } = JSON.parse(event.body || '{}');
+async function handleSearch(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
+    const body = JSON.parse((event as any).body || '{}');
+    const { userId, query, limit = 5 } = body;
 
-    if (!userId || !query || !apiKey) {
-        return apiError(400, 'Missing userId, query, or apiKey');
+    if (!userId || !query) {
+        return apiError(400, 'Missing userId or query');
     }
 
-    const authenticatedId = extractUserIdFromToken(event);
-    if (!authenticatedId || authenticatedId !== userId) {
-        console.warn(`[Security] Unauthorized memory search attempt for user ${userId}`);
-        return apiError(403, 'Forbidden: Invalid or missing authorization token for this user');
+    // Embed the query
+    let queryEmbedding: number[] = [];
+    try {
+        queryEmbedding = await getEmbedding(query);
+    } catch (e: any) {
+        console.error('[Query embedding failed]', e.message);
+        return apiError(500, 'Failed to embed query');
     }
 
-    // 1. Generate text embedding of the query
-    const queryEmbedding = await fetchGeminiEmbedding(query, apiKey);
-    if (!queryEmbedding.length) {
-        return apiError(500, 'Failed to generate query embedding');
-    }
-
-    // 2. Load all memories for user from DynamoDB
+    // Fetch all user memories
     const pk = `USER#${userId}`;
     const response = await docClient.send(new QueryCommand({
         TableName: TABLE_NAME,
         KeyConditionExpression: 'PK = :pk AND begins_with(SK, :skPrefix)',
         ExpressionAttributeValues: {
             ':pk': pk,
-            ':skPrefix': 'MEMORY#'
+            ':skPrefix': 'memories#'
         }
     }));
 
-    const allMemories = response.Items ? response.Items.map(i => i.data) : [];
-
-    if (!allMemories.length) {
-        return apiSuccess({ results: [] });
+    const items = response.Items || [];
+    if (items.length === 0) {
+        return apiSuccess({ results: [], count: 0 });
     }
 
-    // 3. Perform in-memory Cosine Similarity matching
-    const scoredMemories = allMemories.map((mem: any) => {
-        // Skip if wrong agent context
-        if (agentId && mem.agentId && mem.agentId !== agentId) {
-            return { memory: mem, score: -1 };
-        }
-
-        const score = mem.embedding && mem.embedding.length
-            ? cosineSimilarity(queryEmbedding, mem.embedding)
-            : 0;
-
-        return { memory: mem, score };
-    });
-
-    // 4. Sort by highest score and take top K
-    const results = scoredMemories
-        .filter(m => m.score > 0.3) // Minimum relevance threshold
+    // Compute similarity and rank
+    const scored = items
+        .filter(item => item.data?.embedding?.length > 0)
+        .map(item => ({
+            content: item.data.content,
+            category: item.data.category,
+            score: cosineSimilarity(queryEmbedding, item.data.embedding),
+            createdAt: item.data.createdAt
+        }))
         .sort((a, b) => b.score - a.score)
-        .slice(0, limit)
-        .map(m => m.memory);
+        .slice(0, limit);
 
-    return apiSuccess({ results });
+    // Also include recent items without embeddings (fallback)
+    const noEmbedding = items
+        .filter(item => !item.data?.embedding?.length)
+        .sort((a, b) => (b.data?.createdAt || '').localeCompare(a.data?.createdAt || ''))
+        .slice(0, 3)
+        .map(item => ({
+            content: item.data.content,
+            category: item.data.category,
+            score: 0,
+            createdAt: item.data.createdAt
+        }));
+
+    return apiSuccess({
+        results: [...scored, ...noEmbedding].slice(0, limit),
+        count: items.length
+    });
 }

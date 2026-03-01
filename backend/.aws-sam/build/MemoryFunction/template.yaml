@@ -1,97 +1,35 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: RamN AI Backend — CORS proxy, tool catalog, health
+Description: RamN AI Backend - Auth, DB, Proxy, Tools, Memory
+
+Parameters:
+  GeminiApiKey:
+    Type: String
+    Description: Gemini API Key for embedding and AI services
+    Default: ''
+    NoEcho: true
 
 Globals:
   Function:
-    Timeout: 30
     Runtime: nodejs22.x
+    Timeout: 30
     MemorySize: 256
     Environment:
       Variables:
-        ALLOWED_ORIGINS: "https://ramnai.com,http://localhost:5173"
+        TABLE_NAME: !Ref EntitiesTable
   Api:
     Cors:
-      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowMethods: "'OPTIONS,GET,POST,PUT,DELETE'"
       AllowHeaders: "'Content-Type,Authorization,X-Requested-With'"
       AllowOrigin: "'*'"
 
 Resources:
-  RamnApi:
-    Type: AWS::Serverless::HttpApi
-    Properties:
-      StageName: prod
-      CorsConfiguration:
-        AllowMethods:
-          - GET
-          - POST
-          - OPTIONS
-        AllowHeaders:
-          - Content-Type
-          - Authorization
-          - X-Requested-With
-        AllowOrigins:
-          - https://ramnai.com
-          - http://localhost:5173
-
-  HealthFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: dist/health.handler
-      CodeUri: .
-      Events:
-        Health:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/health
-            Method: GET
-
-  ProxyFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: dist/proxy.handler
-      CodeUri: .
-      Timeout: 60
-      Events:
-        Proxy:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/proxy
-            Method: POST
-
-  ToolsListFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: dist/tools.listHandler
-      CodeUri: .
-      Events:
-        ListTools:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/tools
-            Method: GET
-
-  ToolsExecuteFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: dist/tools.executeHandler
-      CodeUri: .
-      Timeout: 60
-      Events:
-        ExecuteTool:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/tools/execute
-            Method: POST
-
-  RamNTable:
+  # ──── DynamoDB Table ────
+  EntitiesTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: RamN-Entities
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S
@@ -102,71 +40,96 @@ Resources:
           KeyType: HASH
         - AttributeName: SK
           KeyType: RANGE
-      BillingMode: PAY_PER_REQUEST
+
+  # ──── Lambda Functions ────
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/auth.handler
+      CodeUri: .
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntitiesTable
+      Events:
+        Register:
+          Type: Api
+          Properties:
+            Path: /api/auth/register
+            Method: POST
+        Login:
+          Type: Api
+          Properties:
+            Path: /api/auth/login
+            Method: POST
+        AuthOptions:
+          Type: Api
+          Properties:
+            Path: /api/auth/{proxy+}
+            Method: OPTIONS
 
   DbFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: dist/db.handler
       CodeUri: .
-      Timeout: 30
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref RamNTable
-      Environment:
-        Variables:
-          TABLE_NAME: !Ref RamNTable
+            TableName: !Ref EntitiesTable
       Events:
-        GetApi:
-          Type: HttpApi
+        DbPost:
+          Type: Api
           Properties:
-            ApiId: !Ref RamnApi
+            Path: /api/db
+            Method: POST
+        DbGet:
+          Type: Api
+          Properties:
             Path: /api/db
             Method: GET
-        PostApi:
-          Type: HttpApi
+        DbDelete:
+          Type: Api
           Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/db
-            Method: POST
-        PutApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/db
-            Method: PUT
-        DeleteApi:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref RamnApi
             Path: /api/db
             Method: DELETE
+        DbOptions:
+          Type: Api
+          Properties:
+            Path: /api/db
+            Method: OPTIONS
 
-  AuthFunction:
+  ProxyFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: dist/auth.handler
+      Handler: dist/proxy.handler
       CodeUri: .
-      Timeout: 30
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref RamNTable
-      Environment:
-        Variables:
-          TABLE_NAME: !Ref RamNTable
       Events:
-        RegisterApi:
-          Type: HttpApi
+        ProxyPost:
+          Type: Api
           Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/auth/register
+            Path: /api/proxy
             Method: POST
-        LoginApi:
-          Type: HttpApi
+        ProxyOptions:
+          Type: Api
           Properties:
-            ApiId: !Ref RamnApi
-            Path: /api/auth/login
-            Method: POST
+            Path: /api/proxy
+            Method: OPTIONS
+
+  ToolsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/tools.handler
+      CodeUri: .
+      Events:
+        ToolsGet:
+          Type: Api
+          Properties:
+            Path: /api/tools
+            Method: GET
+        ToolsOptions:
+          Type: Api
+          Properties:
+            Path: /api/tools
+            Method: OPTIONS
 
   MemoryFunction:
     Type: AWS::Serverless::Function
@@ -174,28 +137,36 @@ Resources:
       Handler: dist/memory.handler
       CodeUri: .
       Timeout: 60
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref RamNTable
       Environment:
         Variables:
-          TABLE_NAME: !Ref RamNTable
+          TABLE_NAME: !Ref EntitiesTable
+          GCP_PROJECT_ID: ramn-ai
+          GCP_LOCATION: us-central1
+          GEMINI_API_KEY: !Ref GeminiApiKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EntitiesTable
       Events:
         MemoryAdd:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref RamnApi
             Path: /api/memory/add
             Method: POST
         MemorySearch:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref RamnApi
             Path: /api/memory/search
             Method: POST
+        MemoryOptions:
+          Type: Api
+          Properties:
+            Path: /api/memory/{proxy+}
+            Method: OPTIONS
 
 Outputs:
   ApiUrl:
-    Description: API Gateway endpoint URL
-    Value: !Sub "https://${RamnApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
-
+    Description: API Gateway URL
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  TableName:
+    Description: DynamoDB Table
+    Value: !Ref EntitiesTable
