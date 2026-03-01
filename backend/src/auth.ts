@@ -64,7 +64,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
 async function handleRegister(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
     const body = JSON.parse(event.body || '{}');
-    const { email, password, name } = body;
+    const { password, name } = body;
+    const email = (body.email || '').toLowerCase().trim();
 
     if (!email || !password || !name) {
         return apiError(400, 'Missing email, password, or name');
@@ -121,7 +122,8 @@ async function handleRegister(event: APIGatewayProxyEvent): Promise<APIGatewayPr
 
 async function handleLogin(event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> {
     const body = JSON.parse(event.body || '{}');
-    const { email, password } = body;
+    const { password } = body;
+    const email = (body.email || '').toLowerCase().trim();
 
     if (!email || !password) {
         return apiError(400, 'Missing email or password');

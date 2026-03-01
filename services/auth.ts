@@ -7,7 +7,8 @@ export interface UserSession {
 }
 
 export const authService = {
-    async register(email: string, password: string, name: string): Promise<UserSession> {
+    async register(emailRaw: string, password: string, name: string): Promise<UserSession> {
+        const email = emailRaw.toLowerCase().trim();
         if (!BACKEND_URL) {
             // Dev-only fallback (no backend deployed yet)
             const id = `user-${Date.now()}`;
@@ -43,7 +44,8 @@ export const authService = {
         return session;
     },
 
-    async login(email: string, password?: string): Promise<UserSession> {
+    async login(emailRaw: string, password?: string): Promise<UserSession> {
+        const email = emailRaw.toLowerCase().trim();
         if (!BACKEND_URL) {
             // Dev-only fallback — strict password check
             const storedUsers = JSON.parse(localStorage.getItem('mock_registry') || '[]');
