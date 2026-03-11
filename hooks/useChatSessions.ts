@@ -10,8 +10,6 @@ const PRISM_INTRO = `Prism is Active. I am your Meta Agent and Workspace Archite
 - **Ask Prism** (Default): Get answers to any general question.
 - **Route**: Find the best AI model for your objective without creating an agent.
 - **Create Agents**: Fabricate specialized units for dedicated tasks.
-- **Chat Interval**: Pace the interaction for multi-step reasoning.
-
 How can I help you build your workspace today? Tell me about a project, a workflow, or a specific problem you're looking to solve.
 
 Let's start with "create an agent....!"`;
@@ -191,39 +189,6 @@ export const useChatSessions = (currentUser: UserProfile | null) => {
         }
     }, [currentUser, persistChatMessage]);
 
-    const startNewSession = useCallback(async (entityId: string) => {
-        if (!currentUser) return;
-
-        const deactivated = chatSessions.map(s => ({ ...s, isActive: false }));
-        deactivated.forEach(persistSession);
-
-        const newSession: ChatSession = createSession(currentUser.id, entityId, true);
-        persistSession(newSession);
-
-        setChatSessions([...deactivated, newSession]);
-        setActiveSessionId(newSession.id);
-        setActiveChatId(entityId);
-        const initMsg = getInitialMessage(entityId);
-        const seeded = initMsg ? [initMsg] : [];
-        setChatHistory(prev => ({ ...prev, [entityId]: seeded }));
-        if (initMsg) persistChatMessage(currentUser.id, entityId, initMsg);
-    }, [currentUser, chatSessions, createSession, getInitialMessage, persistSession, persistChatMessage]);
-
-    const resumeSession = useCallback(async (session: ChatSession) => {
-        const updatedSessions = chatSessions.map(s => ({
-            ...s,
-            isActive: s.id === session.id
-        }));
-        setChatSessions(updatedSessions);
-        updatedSessions.forEach(persistSession);
-        setActiveSessionId(session.id);
-        setActiveChatId(session.entityId);
-    }, [chatSessions, persistSession]);
-
-    const getSessionsForEntity = useCallback((entityId: string) => {
-        return chatSessions.filter(s => s.entityId === entityId).sort((a, b) => b.updatedAt - a.updatedAt);
-    }, [chatSessions]);
-
     const switchChat = useCallback(async (entityId: string) => {
         setActiveChatId(entityId);
         if (!currentUser) return;
@@ -249,8 +214,7 @@ export const useChatSessions = (currentUser: UserProfile | null) => {
     return {
         chatHistory, setChatHistory,
         activeChatId, setActiveChatId: switchChat,
-        chatSessions, activeSessionId,
-        loadSessions, addMessage, clearChat, loadChatHistory,
-        startNewSession, resumeSession, getSessionsForEntity
+        activeSessionId,
+        loadSessions, addMessage, clearChat, loadChatHistory
     };
 };

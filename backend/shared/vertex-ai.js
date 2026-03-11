@@ -163,7 +163,7 @@ async function getAccessToken() {
 
 // ─── Build Vertex AI Request Payload ────────────────────────────
 
-function buildPayload({ systemPrompt, userMessage, history = [], tools, temperature }) {
+function buildPayload({ systemPrompt, userMessage, history = [], tools, temperature, modelName }) {
     const contents = [];
 
     // Convert history: [{role: 'user'|'model', content: string}] → Vertex format
@@ -182,12 +182,23 @@ function buildPayload({ systemPrompt, userMessage, history = [], tools, temperat
         });
     }
 
+    // Determine maxOutputTokens based on model
+    // Note: 'flash-lite' check must come before 'flash' since 'flash-lite' contains 'flash'
+    let maxOutputTokens = 2048;
+    if (modelName && modelName.includes('flash-lite')) {
+        maxOutputTokens = 1024;
+    } else if (modelName && modelName.includes('flash')) {
+        maxOutputTokens = 2048;
+    } else if (modelName && modelName.includes('pro')) {
+        maxOutputTokens = 4096;
+    }
+
     const payload = {
         contents,
         generationConfig: {
             temperature: temperature ?? DEFAULT_TEMPERATURE,
             topP: 0.95,
-            maxOutputTokens: 8192
+            maxOutputTokens
         }
     };
 
@@ -369,7 +380,7 @@ export async function callAI({
         throw new Error('[vertex-ai] callAI requires at least userMessage or history');
     }
 
-    const payload = buildPayload({ systemPrompt, userMessage, history, tools, temperature });
+    const payload = buildPayload({ systemPrompt, userMessage, history, tools, temperature, modelName });
     return sendVertexRequest(payload, modelName);
 }
 
@@ -401,7 +412,7 @@ export async function callAIWithTools({
         throw new Error('[vertex-ai] callAIWithTools requires at least one tool definition');
     }
 
-    const payload = buildPayload({ systemPrompt, userMessage, history, tools, temperature });
+    const payload = buildPayload({ systemPrompt, userMessage, history, tools, temperature, modelName });
     return sendVertexRequest(payload, modelName);
 }
 

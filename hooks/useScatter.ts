@@ -39,9 +39,8 @@ export const useScatter = () => {
 
     const {
         activeChatId, setActiveChatId,
-        chatSessions, activeSessionId,
+        activeSessionId,
         loadSessions, addMessage, clearChat, loadChatHistory,
-        startNewSession, resumeSession, getSessionsForEntity
     } = useChatSessions(currentUser);
 
     // === Rate Limit State ===
@@ -322,8 +321,6 @@ export const useScatter = () => {
         clearChat, loadChatHistory, recruitAgent: addDynamoAgent, deleteAgent, deleteTeam,
         createTeam: (data: any) => createTeam(data, setActiveChatId),
         rateLimitInfo,
-        // Session Management
-        chatSessions, activeSessionId, startNewSession, resumeSession, getSessionsForEntity,
         // Special Agent Flow
         sendSpecialAgentToPrism
     };
